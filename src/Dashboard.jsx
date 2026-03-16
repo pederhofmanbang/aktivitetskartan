@@ -1480,12 +1480,21 @@ function NetworkView({ data, onClickItem }) {
     if (fk && fk.includes("Stat")) return "rect";
     return "diamond";
   };
-  // Resize observer
+  // Resize observer — update dims ref + SVG size without re-running simulation
+  const dimsRef = useRef(dims);
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
-      if (width > 100 && height > 100) setDims({ w: width, h: height });
+      if (width > 100 && height > 100) {
+        dimsRef.current = { w: width, h: height };
+        setDims({ w: width, h: height });
+        // Update centering forces without restarting entire simulation
+        if (simRef.current) {
+          simRef.current.force("center", d3.forceCenter(width / 2, height / 2));
+          simRef.current.alpha(0.1).restart();
+        }
+      }
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
@@ -1513,7 +1522,7 @@ function NetworkView({ data, onClickItem }) {
         if (!linkSet.has(key)) { linkSet.add(key); links.push({ source: d.nr, target: n }); }
       });
     });
-    const { w, h } = dims;
+    const { w, h } = dimsRef.current;
     const g = svg.append("g");
     // Zoom
     const zoom = d3.zoom().scaleExtent([0.2, 4]).on("zoom", e => g.attr("transform", e.transform));
@@ -1570,13 +1579,11 @@ function NetworkView({ data, onClickItem }) {
     });
     svg.on("click", () => {}); // prevent zoom reset
     // Simulation
-    nodes.forEach(n => { n.x = w / 2 + (Math.random() - 0.5) * 100; n.y = h / 2 + (Math.random() - 0.5) * 100; });
+    nodes.forEach(n => { n.x = w / 2 + (Math.random() - 0.5) * 200; n.y = h / 2 + (Math.random() - 0.5) * 200; });
     const sim = d3.forceSimulation(nodes)
       .force("link", d3.forceLink(links).id(d => d.id).distance(80))
       .force("charge", d3.forceManyBody().strength(-200))
       .force("center", d3.forceCenter(w / 2, h / 2))
-      .force("x", d3.forceX(w / 2).strength(0.05))
-      .force("y", d3.forceY(h / 2).strength(0.05))
       .force("collision", d3.forceCollide().radius(d => d.r + 6))
       .on("tick", () => {
         link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
@@ -1590,7 +1597,8 @@ function NetworkView({ data, onClickItem }) {
       .on("end", (event, d) => { if (!event.active) sim.alphaTarget(0); d.fx = null; d.fy = null; });
     node.call(drag);
     return () => sim.stop();
-  }, [data, visibleNrs, focusNrs, dims, adj, dataMap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, visibleNrs, focusNrs, adj, dataMap]);
   // Search suggestions
   const suggestions = useMemo(() => {
     if (searchTerm.length < 2) return [];
