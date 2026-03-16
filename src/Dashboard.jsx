@@ -1570,10 +1570,13 @@ function NetworkView({ data, onClickItem }) {
     });
     svg.on("click", () => {}); // prevent zoom reset
     // Simulation
+    nodes.forEach(n => { n.x = w / 2 + (Math.random() - 0.5) * 100; n.y = h / 2 + (Math.random() - 0.5) * 100; });
     const sim = d3.forceSimulation(nodes)
       .force("link", d3.forceLink(links).id(d => d.id).distance(80))
       .force("charge", d3.forceManyBody().strength(-200))
       .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("x", d3.forceX(w / 2).strength(0.05))
+      .force("y", d3.forceY(h / 2).strength(0.05))
       .force("collision", d3.forceCollide().radius(d => d.r + 6))
       .on("tick", () => {
         link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
