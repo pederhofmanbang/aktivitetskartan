@@ -1120,6 +1120,126 @@ function MapView({ data, onClickItem }) {
     </div>
   );
 }
+/* ─────────── GUIDE VIEW (Lathund) ─────────── */
+function GuideView() {
+  const sectionStyle = { background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" };
+  const headingStyle = { fontSize: 14, fontWeight: 800, color: "#1B3A5C", marginBottom: 4, marginTop: 0, fontFamily: "'DM Sans', sans-serif" };
+  const subStyle = { fontSize: 11.5, color: "#6B7280", marginBottom: 14, marginTop: 0 };
+  const rowStyle = { display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 };
+  const labelStyle = { fontSize: 12, fontWeight: 700, color: "#374151", minWidth: 120, flexShrink: 0 };
+  const descStyle = { fontSize: 12, color: "#6B7280", lineHeight: 1.5 };
+  const chipStyle = (bg, border, color) => ({ display: "inline-block", padding: "3px 10px", borderRadius: 10, fontSize: 10.5, fontWeight: 600, background: bg, border: `1px solid ${border}`, color, marginRight: 4, marginBottom: 4 });
+  const stepBox = (bg, border) => ({ flex: 1, background: bg, border: `2px solid ${border}`, borderRadius: 12, padding: "14px 16px", textAlign: "center", position: "relative" });
+  const arrowStyle = { display: "flex", alignItems: "center", fontSize: 22, color: "#9CA3AF", fontWeight: 300, padding: "0 2px" };
+
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1B3A5C", margin: "0 0 4px 0", fontFamily: "'DM Sans', sans-serif" }}>Aktivitetskartan — lathund</h2>
+        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>97 hälsodatainitiativ — läs, analysera, redigera, kvalitetssäkra</p>
+      </div>
+
+      {/* TWO-COLUMN: Användare + Redaktör */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        {/* LEFT — Användare */}
+        <div style={{ ...sectionStyle, background: "#F0F7FF", borderColor: "#B8D4F0" }}>
+          <h3 style={{ ...headingStyle, color: "#1A56DB" }}>Utforska och analysera</h3>
+          <p style={subStyle}>Alla användare — ingen inloggning krävs</p>
+          <div style={rowStyle}><span style={labelStyle}>Sök</span><span style={descStyle}>Fritext i headern — söker på namn, beskrivning, ansvarig och nummer</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Filter</span><span style={descStyle}>Del (A–D), underkategori, finansieringskälla, mognadsgrad, jurisdiktioner, taggar (4 kategorier), "Arbeta vidare", QA-godkänd</span></div>
+          <div style={rowStyle}><span style={labelStyle}>6 vyer</span><span style={descStyle}>Kort, Matris, Nätverk, Karta, Kandidater, Lathund</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Sortering</span><span style={descStyle}>Rapportordning (nr), Namn A–Ö, AI-relevans, KCHD-relevans, Finansiering (MSEK)</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Detaljmodal</span><span style={descStyle}>Klicka på ett kort → alla data, AI- och KCHD-poäng, nyttodimensioner, EHDS, beroenden, taggar</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Datafördjupning</span><span style={descStyle}>Utökade datafält: förmågor, domän, frekvens, standarder, kvalitet m.m. (9 fält per kort)</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Jämför</span><span style={descStyle}>Kryssa 2–5 kort → jämför sida vid sida med all data och poäng</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Skriv ut</span><span style={descStyle}>Markera kort → genererar HTML-fil med all data → öppna + Ctrl+P för PDF</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Export / import</span><span style={descStyle}>Spara/ladda alla ändringar som JSON-fil (backup)</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Expandera</span><span style={descStyle}>Alla modaler har helskärmsknapp (⊞) i övre hörnet</span></div>
+        </div>
+
+        {/* RIGHT — Redaktör */}
+        <div style={{ ...sectionStyle, background: "#FFF9F0", borderColor: "#E8C9A0" }}>
+          <h3 style={{ ...headingStyle, color: "#B45309" }}>Redigera och kvalitetssäkra</h3>
+          <p style={subStyle}>Ändringar sparas automatiskt i Supabase (delat mellan alla)</p>
+          <div style={rowStyle}><span style={labelStyle}>Redigera fält</span><span style={descStyle}>17 textfält + AI-poäng (6 dim.), KCHD-poäng (5 dim.), nyttodimensioner, taggar. Historik sparas (max 10 per fält)</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Mognadsgrad</span><span style={descStyle}>6 nivåer: Planerad → Under uppbyggnad → Pilot/test → Operativ (begränsad) → Fullt implementerad → Avslutat</span></div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>QA-kedja</span>
+            <span style={descStyle}>
+              4 steg: <span style={chipStyle("#E8F0FE","#4285F4","#1A56DB")}>AI-research</span>
+              <span style={chipStyle("#E8F0FE","#4285F4","#1A56DB")}>Manuell redigering</span>
+              <span style={chipStyle("#F3E8FE","#8B5CF6","#6D28D9")}>Ny AI-kontroll (frivillig)</span>
+              <span style={chipStyle("#F0FFF4","#22C55E","#166534")}>Godkänd</span>
+            </span>
+          </div>
+          <div style={rowStyle}><span style={labelStyle}>Informations&shy;insamling</span><span style={descStyle}>Bocka av metoder: desktop research (inkl AI), dialog med sakkunnig, granskad av sakkunnig, dialog i grupp + fritextfält</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Jurisdiktioner</span><span style={descStyle}>13 regelverk (GDPR, PDL, EHDS, AI Act, MDR m.fl.) + fritextfält för övrigt</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Källor</span><span style={descStyle}>Lägg till URL + etikett per initiativ (obegränsat antal)</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Arbeta vidare</span><span style={descStyle}>Stjärnmarkera kort (⭐) för att prioritera — filtrerbart</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Föreslå ändringar</span><span style={descStyle}>Fritext per kort — sparas separat, syns vid utskrift</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Datafördjupning</span><span style={descStyle}>Redigera 9 datafält: förmåga (checkboxar + text), domän, frekvens, datatyp, datamängd, källsystem, IoT/sensor, standarder, kvalitet</span></div>
+          <div style={rowStyle}><span style={labelStyle}>Kandidater</span><span style={descStyle}>Föreslå nya initiativ som kan bli egna kort — med prioritet, status, EHDS-relevans</span></div>
+        </div>
+      </div>
+
+      {/* QA PROCESS */}
+      <div style={{ ...sectionStyle, background: "#F0FFF4", borderColor: "#A7D7B8", marginBottom: 20 }}>
+        <h3 style={{ ...headingStyle, color: "#166534", textAlign: "center" }}>Kvalitetsprocess — från AI-utkast till godkänt kort</h3>
+        <p style={{ ...subStyle, textAlign: "center" }}>Varje kort genomgår upp till 4 steg. Steg 3 är frivilligt.</p>
+        <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 16, marginBottom: 16 }}>
+          <div style={stepBox("#E8F0FE", "#4285F4")}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1A56DB", marginBottom: 4 }}>1. AI-research</div>
+            <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, marginBottom: 6 }}>Grunddata genereras</div>
+            <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.5 }}>AI samlar in och strukturerar information om varje initiativ</div>
+          </div>
+          <div style={arrowStyle}>→</div>
+          <div style={stepBox("#FFF9F0", "#E8913A")}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#B45309", marginBottom: 4 }}>2. Manuell redigering</div>
+            <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, marginBottom: 6 }}>Redaktör granskar</div>
+            <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.5 }}>Redigera textfält, sätt mognadsgrad, koppla jurisdiktioner, lägg till källor</div>
+          </div>
+          <div style={arrowStyle}>→</div>
+          <div style={stepBox("#F3E8FE", "#8B5CF6")}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#6D28D9", marginBottom: 4 }}>3. Ny AI-kontroll</div>
+            <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, marginBottom: 6 }}>Frivilligt steg</div>
+            <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.5 }}>Komplettera datafördjupning, verifiera fakta, korskontrollera</div>
+          </div>
+          <div style={arrowStyle}>→</div>
+          <div style={stepBox("#F0FFF4", "#22C55E")}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#166534", marginBottom: 4 }}>4. Godkänd</div>
+            <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, marginBottom: 6 }}>Klart att använda</div>
+            <div style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.5 }}>Kortet visas med grön bock (✅), filtrerbart som "QA-godkänd"</div>
+          </div>
+        </div>
+      </div>
+
+      {/* STRUCTURE — Del A–D */}
+      <div style={{ ...sectionStyle, marginBottom: 20 }}>
+        <h3 style={headingStyle}>Kartans struktur — 4 delar, 8 underkategorier</h3>
+        <p style={subStyle}>Initiativen är organiserade i 4 delar med totalt 8 underkategorier</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {[
+            { del: "A", label: "Infrastruktur & datadelning", color: "#4285F4", bg: "#E8F0FE", subs: ["A1 – Regionala initiativ", "A2 – Statliga initiativ", "A3 – EU / internationella"] },
+            { del: "B", label: "TRE-miljöer", color: "#E8913A", bg: "#FEF3E2", subs: ["B – Trusted Research Environments"] },
+            { del: "C", label: "Stödsystem & standarder", color: "#2D8A56", bg: "#E6F5EC", subs: ["C1 – Regionala stödsystem", "C2 – Statliga stödsystem", "C3 – EU / internationella stöd"] },
+            { del: "D", label: "Lagstiftning & strategi", color: "#8B5CF6", bg: "#F3E8FE", subs: ["D – Lagstiftning, strategi & policy"] },
+          ].map(d => (
+            <div key={d.del} style={{ background: d.bg, border: `1px solid ${d.color}33`, borderRadius: 10, padding: "12px 16px" }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: d.color, marginBottom: 4 }}>Del {d.del} — {d.label}</div>
+              {d.subs.map(s => <div key={s} style={{ fontSize: 11, color: "#374151", marginBottom: 2 }}>• {s}</div>)}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ textAlign: "center", padding: "12px 0", color: "#9CA3AF", fontSize: 11.5, lineHeight: 1.6 }}>
+        <div style={{ marginBottom: 4 }}>Alla ändringar sparas automatiskt i Supabase — delat mellan alla användare, alla enheter.</div>
+        <div>Grunddata (97 initiativ) är inbakad i appen och uppdateras vid ny deploy.</div>
+      </div>
+    </div>
+  );
+}
 /* ─────────── CANDIDATES VIEW (Kandidater) ─────────── */
 const CANDIDATE_STATUSES = ["Föreslagen", "Under utredning", "Beslutad", "Avvisad"];
 const CANDIDATE_PRIORITIES = ["Hög", "Medel", "Låg"];
@@ -2075,6 +2195,7 @@ export default function Dashboard() {
                 <button onClick={() => setViewMode("network")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "network" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "network" ? "#E8F0FE" : "#fff", color: viewMode === "network" ? "#1A56DB" : "#6B7280" }}>Nätverk</button>
                 <button onClick={() => setViewMode("map")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "map" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "map" ? "#E8F0FE" : "#fff", color: viewMode === "map" ? "#1A56DB" : "#6B7280" }}>Karta</button>
                 <button onClick={() => setViewMode("candidates")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "candidates" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "candidates" ? "#E8F0FE" : "#fff", color: viewMode === "candidates" ? "#1A56DB" : "#6B7280" }}>Kandidater</button>
+                <button onClick={() => setViewMode("guide")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "guide" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "guide" ? "#E8F0FE" : "#fff", color: viewMode === "guide" ? "#1A56DB" : "#6B7280" }}>Lathund</button>
               </div>
               <div style={{ flex: 1 }} />
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2088,8 +2209,10 @@ export default function Dashboard() {
                 </select>
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "map" || viewMode === "candidates") ? 0 : 20 }}>
-              {viewMode === "candidates" ? (
+            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide") ? 0 : 20 }}>
+              {viewMode === "guide" ? (
+                <GuideView />
+              ) : viewMode === "candidates" ? (
                 <CandidatesView />
               ) : viewMode === "map" ? (
                 <MapView data={sorted} onClickItem={item => setDetailItem(item)} />
