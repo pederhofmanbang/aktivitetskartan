@@ -1491,7 +1491,8 @@ function NetworkView({ data, onClickItem }) {
         setDims({ w: width, h: height });
         // Update centering forces without restarting entire simulation
         if (simRef.current) {
-          simRef.current.force("center", d3.forceCenter(width / 2, height / 2));
+          simRef.current.force("x", d3.forceX(width / 2).strength(0.1));
+          simRef.current.force("y", d3.forceY(height / 2).strength(0.1));
           simRef.current.alpha(0.1).restart();
         }
       }
@@ -1583,11 +1584,31 @@ function NetworkView({ data, onClickItem }) {
     const sim = d3.forceSimulation(nodes)
       .force("link", d3.forceLink(links).id(d => d.id).distance(80))
       .force("charge", d3.forceManyBody().strength(-200))
-      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("x", d3.forceX(w / 2).strength(0.1))
+      .force("y", d3.forceY(h / 2).strength(0.1))
       .force("collision", d3.forceCollide().radius(d => d.r + 6))
+      .alphaDecay(0.03)
       .on("tick", () => {
         link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
         node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+      })
+      .on("end", () => {
+        // Auto-fit: zoom to fit all nodes once simulation settles
+        if (nodes.length === 0) return;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nodes.forEach(n => {
+          if (n.x - n.r < minX) minX = n.x - n.r;
+          if (n.y - n.r < minY) minY = n.y - n.r;
+          if (n.x + n.r > maxX) maxX = n.x + n.r;
+          if (n.y + n.r > maxY) maxY = n.y + n.r;
+        });
+        const padding = 40;
+        const bw = maxX - minX + padding * 2;
+        const bh = maxY - minY + padding * 2;
+        const scale = Math.min(w / bw, h / bh, 1.5);
+        const tx = w / 2 - (minX + maxX) / 2 * scale;
+        const ty = h / 2 - (minY + maxY) / 2 * scale;
+        svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
       });
     simRef.current = sim;
     // Drag
