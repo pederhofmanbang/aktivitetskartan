@@ -128,6 +128,9 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
     await saveOverride(item.nr, override);
     if (refreshOverrides) refreshOverrides();
   };
+  const autoSave = useCallback((nextOverride) => {
+    saveOverride(item.nr, nextOverride).then(() => { if (refreshOverrides) refreshOverrides(); });
+  }, [item.nr, refreshOverrides]);
   const toggleArbetaVidere = async () => {
     const next = { ...override, arbetaVidere: !override.arbetaVidere };
     setOverride(next);
@@ -181,31 +184,30 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
           {/* EDITABLE FIELDS */}
           {showEdit && <div style={{ marginBottom: 16, padding: 14, background: "#FFF8F0", borderRadius: 10, border: "1px solid #FCD34D" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#B45309", marginBottom: 8 }}>Redigera fält (sparas i override-lager, original bevaras alltid i historik)</div>
-            <EditableField label="Namn" field="n" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Ansvarig" field="ans" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Typ" field="typ" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Finansieringskälla" field="fk" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Finansiering" field="fin" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Tidplan" field="tid" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Målgrupp" field="mg" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Fokus" field="fok" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Nyckelkaraktäristik" field="nk" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="EHDS-relevans" field="ehds" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Datastandarder" field="ds" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Teknisk miljö" field="tek" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Aktörer" field="akt" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Arbetsgruppens beskrivning" field="wg_beskr" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Teknologi/infrastruktur (arbetsgruppen)" field="wg_tek" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Beroenden (kommaseparerade nr)" field="dep" item={item} override={override} setOverride={setOverride} />
-            <EditableField label="Korrigering" field="korr" item={item} override={override} setOverride={setOverride} />
+            <EditableField label="Namn" field="n" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Ansvarig" field="ans" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Typ" field="typ" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Finansieringskälla" field="fk" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Finansiering" field="fin" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Tidplan" field="tid" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Målgrupp" field="mg" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Fokus" field="fok" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Nyckelkaraktäristik" field="nk" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="EHDS-relevans" field="ehds" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Datastandarder" field="ds" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Teknisk miljö" field="tek" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Aktörer" field="akt" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Arbetsgruppens beskrivning" field="wg_beskr" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Teknologi/infrastruktur (arbetsgruppen)" field="wg_tek" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Beroenden (kommaseparerade nr)" field="dep" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+            <EditableField label="Korrigering" field="korr" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
             <div style={{ borderTop: "1px solid #E5E7EB", marginTop: 8, paddingTop: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#B45309", marginBottom: 6 }}>Strukturerade fält</div>
-              <ScoreArrayEditor label="AI-relevans (6 dimensioner)" field="ai" item={item} override={override} setOverride={setOverride} />
-              <ScoreArrayEditor label="KCHD-relevans (5 dimensioner)" field="kchd" item={item} override={override} setOverride={setOverride} />
-              <NyttaEditor item={item} override={override} setOverride={setOverride} />
-              <TagsEditor item={item} override={override} setOverride={setOverride} />
+              <ScoreArrayEditor label="AI-relevans (6 dimensioner)" field="ai" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+              <ScoreArrayEditor label="KCHD-relevans (5 dimensioner)" field="kchd" item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+              <NyttaEditor item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
+              <TagsEditor item={item} override={override} setOverride={setOverride} autoSave={autoSave} />
             </div>
-            <button onClick={handleSave} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #22C55E", background: "#F0FFF4", color: "#166534" }}>Spara redigeringar</button>
           </div>}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px", marginBottom: 20, padding: 16, background: "#F7F8FA", borderRadius: 12 }}>
             {[["Mognadsgrad", matLevel ? matLevel.label : (item.st || "—")],["Finansiering", item.fin || "—"],["Finansieringskälla", item.fk],["Tidsperiod", item.tid || "—"],["Ansvarig", item.ans],["Hälsodatafokus", item.fok || "—"],["Målgrupp", item.mg || "—"],["Typ", item.typ]].map(([l, v], idx) => (
@@ -396,6 +398,7 @@ function CardMetadataPanel({ item, override, setOverride, onSave }) {
   const qa = override.qa || {};
   const info = override.infoGathering || {};
   const jurisdictions = override.jurisdictions || [];
+  const debounceRef = useRef(null);
   const updateOv = (path, val) => {
     const next = JSON.parse(JSON.stringify(override));
     const parts = path.split(".");
@@ -403,6 +406,8 @@ function CardMetadataPanel({ item, override, setOverride, onSave }) {
     for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]]) obj[parts[i]] = {}; obj = obj[parts[i]]; }
     obj[parts[parts.length - 1]] = val;
     setOverride(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { saveOverride(item.nr, next); }, 600);
   };
   const toggleQa = (key) => {
     const curr = qa[key] || {};
@@ -517,14 +522,11 @@ function CardMetadataPanel({ item, override, setOverride, onSave }) {
           + Lägg till källa
         </button>
       </div>
-      <button onClick={onSave} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid #22C55E", background: "#F0FFF4", color: "#166534", alignSelf: "flex-start" }}>
-        Spara alla ändringar
-      </button>
     </div>
   );
 }
 /* ─────────── FIELD EDITOR ─────────── */
-function EditableField({ label, field, item, override, setOverride }) {
+function EditableField({ label, field, item, override, setOverride, autoSave }) {
   const [editing, setEditing] = useState(false);
   const origVal = item[field] || "";
   const hasOverride = override.fields && override.fields[field] !== undefined;
@@ -545,6 +547,7 @@ function EditableField({ label, field, item, override, setOverride }) {
     next.fields[field] = val;
     setOverride(next);
     setEditing(false);
+    if (autoSave) autoSave(next);
   };
   const restore = () => {
     const next = JSON.parse(JSON.stringify(override));
@@ -555,6 +558,7 @@ function EditableField({ label, field, item, override, setOverride }) {
     if (next.fields[field] !== undefined) next.fieldHistory[field].push(next.fields[field]);
     delete next.fields[field];
     setOverride(next);
+    if (autoSave) autoSave(next);
   };
   if (editing) {
     return (
@@ -584,7 +588,7 @@ function EditableField({ label, field, item, override, setOverride }) {
   );
 }
 /* ─────────── SCORE ARRAY EDITOR (AI/KCHD) ─────────── */
-function ScoreArrayEditor({ label, field, item, override, setOverride }) {
+function ScoreArrayEditor({ label, field, item, override, setOverride, autoSave }) {
   const origArr = item[field] || [];
   const hasOv = override.fields && override.fields[field] !== undefined;
   const arr = hasOv ? override.fields[field] : origArr;
@@ -598,6 +602,7 @@ function ScoreArrayEditor({ label, field, item, override, setOverride }) {
     if (next.fieldHistory[field].length > 10) next.fieldHistory[field] = next.fieldHistory[field].slice(-10);
     next.fields[field] = newArr;
     setOverride(next);
+    if (autoSave) autoSave(next);
   };
   const updateItem = (idx, key, val) => {
     const copy = JSON.parse(JSON.stringify(arr));
@@ -649,7 +654,7 @@ function ScoreArrayEditor({ label, field, item, override, setOverride }) {
   );
 }
 /* ─────────── NYTTA EDITOR ─────────── */
-function NyttaEditor({ item, override, setOverride }) {
+function NyttaEditor({ item, override, setOverride, autoSave }) {
   const field = "nytta";
   const origArr = item[field] || [];
   const hasOv = override.fields && override.fields[field] !== undefined;
@@ -664,6 +669,7 @@ function NyttaEditor({ item, override, setOverride }) {
     if (next.fieldHistory[field].length > 10) next.fieldHistory[field] = next.fieldHistory[field].slice(-10);
     next.fields[field] = newArr;
     setOverride(next);
+    if (autoSave) autoSave(next);
   };
   const updateItem = (idx, val) => {
     const copy = JSON.parse(JSON.stringify(arr));
@@ -704,7 +710,7 @@ function NyttaEditor({ item, override, setOverride }) {
   );
 }
 /* ─────────── TAGS EDITOR ─────────── */
-function TagsEditor({ item, override, setOverride }) {
+function TagsEditor({ item, override, setOverride, autoSave }) {
   const field = "tags";
   const origArr = item[field] || [];
   const hasOv = override.fields && override.fields[field] !== undefined;
@@ -719,6 +725,7 @@ function TagsEditor({ item, override, setOverride }) {
     if (next.fieldHistory[field].length > 10) next.fieldHistory[field] = next.fieldHistory[field].slice(-10);
     next.fields[field] = newArr;
     setOverride(next);
+    if (autoSave) autoSave(next);
   };
   const updateTag = (idx, val) => {
     const copy = JSON.parse(JSON.stringify(arr));
