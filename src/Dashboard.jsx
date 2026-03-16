@@ -1915,12 +1915,13 @@ export default function Dashboard() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,400&family=Source+Sans+3:wght@300;400;500;600&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+        * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
       `}</style>
-      <div style={{ fontFamily: "'Source Sans 3', 'DM Sans', system-ui, sans-serif", background: "#F4F5F7", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <div style={{ fontFamily: "'Source Sans 3', 'DM Sans', system-ui, sans-serif", background: "#F4F5F7", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* TOP HEADER */}
         <div style={{ background: "linear-gradient(135deg, #0F2942, #1B3A5C)", color: "#fff", padding: "16px 24px", position: "sticky", top: 0, zIndex: 100 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
