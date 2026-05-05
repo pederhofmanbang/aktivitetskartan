@@ -1120,6 +1120,115 @@ function MapView({ data, onClickItem }) {
     </div>
   );
 }
+/* ─────────── PRIORITIZED VIEW (Prioriterade) ─────────── */
+const PRIO_FIELDS = [
+  { key: "ans", label: "Ansvarig" },
+  { key: "fok", label: "Hälsodatafokus" },
+  { key: "typ", label: "Typ" },
+  { key: "mg", label: "Målgrupp" },
+  { key: "nk", label: "Nyckelkaraktäristik" },
+  { key: "akt", label: "Aktörer" },
+  { key: "ds", label: "Datastandarder" },
+  { key: "tek", label: "Teknik" },
+];
+function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
+  const [editing, setEditing] = useState(false);
+  const origVal = item[field.key] || "";
+  const hasOv = override.fields && override.fields[field.key] !== undefined;
+  const displayVal = hasOv ? override.fields[field.key] : origVal;
+  const save = (val) => {
+    const next = JSON.parse(JSON.stringify(override));
+    if (!next.fields) next.fields = {};
+    if (!next.fieldHistory) next.fieldHistory = {};
+    if (!next.fieldHistory[field.key]) next.fieldHistory[field.key] = [];
+    next.fieldHistory[field.key].push(hasOv ? next.fields[field.key] : origVal);
+    if (next.fieldHistory[field.key].length > 10) next.fieldHistory[field.key] = next.fieldHistory[field.key].slice(-10);
+    next.fields[field.key] = val;
+    setOverride(next);
+    setEditing(false);
+    if (autoSave) autoSave(next);
+  };
+  if (editing) {
+    return (
+      <textarea defaultValue={displayVal} rows={2} autoFocus onBlur={e => save(e.target.value)}
+        onKeyDown={e => { if (e.key === "Escape") setEditing(false); }}
+        style={{ width: "100%", border: "1px solid #4285F4", borderRadius: 6, padding: "5px 8px", fontSize: 11.5, resize: "vertical", fontFamily: "inherit", minHeight: 40 }} />
+    );
+  }
+  return (
+    <div onClick={() => setEditing(true)} style={{ cursor: "pointer", fontSize: 11.5, color: displayVal ? "#374151" : "#CBD5E1", lineHeight: 1.5, minHeight: 18, borderRadius: 4, padding: "2px 4px", transition: "background 0.15s" }}
+      onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+      {displayVal || "Klicka för att redigera..."}
+      {hasOv && <span style={{ fontSize: 8, color: "#F59E0B", marginLeft: 4 }}>✏️</span>}
+    </div>
+  );
+}
+function PrioritizedView({ data, overridesCache, refreshOverrides }) {
+  const starred = useMemo(() => data.filter(i => {
+    const ov = overridesCache[i.nr];
+    return ov && ov.arbetaVidere;
+  }), [data, overridesCache]);
+  const [overrides, setOverrides] = useState({});
+  useEffect(() => {
+    starred.forEach(item => {
+      getOverride(item.nr).then(ov => {
+        setOverrides(prev => ({ ...prev, [item.nr]: ov }));
+      });
+    });
+  }, [starred]);
+  const setOvForNr = (nr) => (next) => {
+    setOverrides(prev => ({ ...prev, [nr]: next }));
+  };
+  const autoSaveForNr = (nr) => (nextOverride) => {
+    saveOverride(nr, nextOverride).then(() => { if (refreshOverrides) refreshOverrides(); });
+  };
+  if (starred.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 60, color: "#9CA3AF" }}>
+        <span style={{ fontSize: 40, display: "block", marginBottom: 12, opacity: 0.4 }}>⭐</span>
+        <p style={{ fontSize: 15, fontWeight: 600 }}>Inga prioriterade initiativ</p>
+        <p style={{ fontSize: 13 }}>Öppna ett kort och klicka "Arbeta vidare" för att stjärnmarkera det</p>
+      </div>
+    );
+  }
+  return (
+    <div style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
+      <div style={{ marginBottom: 16 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1B3A5C", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
+        <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {starred.map(item => {
+          const col = DEL_COLORS[item.del];
+          const ov = overrides[item.nr];
+          if (!ov) return null;
+          return (
+            <div key={item.nr} style={{ background: "#fff", borderRadius: 12, border: `1px solid #F59E0B`, boxShadow: "0 0 0 1px #F59E0B22, 0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+              <div style={{ height: 3, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
+              <div style={{ padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "2px 8px", borderRadius: 5 }}>{item.sub}</span>
+                  <span style={{ fontSize: 11, color: "#6B7280" }}>Nr {item.nr}</span>
+                  <span style={{ fontSize: 12 }}>⭐</span>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px" }}>
+                  {PRIO_FIELDS.map(f => (
+                    <div key={f.key}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 1 }}>{f.label}</div>
+                      <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 /* ─────────── GUIDE VIEW (Lathund) ─────────── */
 function GuideView() {
   const sectionStyle = { background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" };
@@ -2194,6 +2303,7 @@ export default function Dashboard() {
                 <button onClick={() => setViewMode("matrix")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "matrix" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "matrix" ? "#E8F0FE" : "#fff", color: viewMode === "matrix" ? "#1A56DB" : "#6B7280" }}>Matris</button>
                 <button onClick={() => setViewMode("network")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "network" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "network" ? "#E8F0FE" : "#fff", color: viewMode === "network" ? "#1A56DB" : "#6B7280" }}>Nätverk</button>
                 <button onClick={() => setViewMode("map")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "map" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "map" ? "#E8F0FE" : "#fff", color: viewMode === "map" ? "#1A56DB" : "#6B7280" }}>Karta</button>
+                <button onClick={() => setViewMode("prioritized")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "prioritized" ? "1px solid #F59E0B" : "1px solid #E5E7EB", background: viewMode === "prioritized" ? "#FFFBEB" : "#fff", color: viewMode === "prioritized" ? "#B45309" : "#6B7280" }}>⭐ Prioriterade</button>
                 <button onClick={() => setViewMode("candidates")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "candidates" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "candidates" ? "#E8F0FE" : "#fff", color: viewMode === "candidates" ? "#1A56DB" : "#6B7280" }}>Kandidater</button>
                 <button onClick={() => setViewMode("guide")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "guide" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "guide" ? "#E8F0FE" : "#fff", color: viewMode === "guide" ? "#1A56DB" : "#6B7280" }}>Lathund</button>
               </div>
@@ -2209,9 +2319,11 @@ export default function Dashboard() {
                 </select>
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide") ? 0 : 20 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide" || viewMode === "prioritized") ? 0 : 20 }}>
               {viewMode === "guide" ? (
                 <GuideView />
+              ) : viewMode === "prioritized" ? (
+                <PrioritizedView data={DATA} overridesCache={overridesCache} refreshOverrides={async () => { const cache = await getAllOverrides(); setOverridesCache(cache); }} />
               ) : viewMode === "candidates" ? (
                 <CandidatesView />
               ) : viewMode === "map" ? (
