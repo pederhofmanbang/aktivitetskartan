@@ -123,6 +123,13 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     getOverride(item.nr).then(ov => setOverride(ov));
+    const sub = subscribeToTable('overrides', (payload) => {
+      if (payload.new && payload.new.nr === item.nr) {
+        const fallback = { fields: {}, arbetaVidere: false, qa: {}, infoGathering: {}, maturity: null, jurisdictions: [], jurisdictionOther: "", sources: [], fieldHistory: {} };
+        setOverride({ ...fallback, ...payload.new.data });
+      }
+    });
+    return () => sub.unsubscribe();
   }, [item.nr]);
   const handleSave = async () => {
     await saveOverride(item.nr, override);
