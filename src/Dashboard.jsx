@@ -1359,6 +1359,7 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
     return ov && ov.arbetaVidere;
   }), [data, overridesCache]);
   const [overrides, setOverrides] = useState({});
+  const [selectedExport, setSelectedExport] = useState(new Set());
   useEffect(() => {
     starred.forEach(item => {
       getOverride(item.nr).then(ov => {
@@ -1372,6 +1373,112 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
   const autoSaveForNr = (nr) => (nextOverride) => {
     saveOverride(nr, nextOverride).then(() => { if (refreshOverrides) refreshOverrides(); });
   };
+  const toggleExportSelect = (nr) => setSelectedExport(prev => { const n = new Set(prev); if (n.has(nr)) n.delete(nr); else n.add(nr); return n; });
+  const selectAllForExport = () => { if (selectedExport.size === starred.length) setSelectedExport(new Set()); else setSelectedExport(new Set(starred.map(i => i.nr))); };
+
+  const buildCardMarkdown = (item, ov) => {
+    const lines = [];
+    lines.push("# " + item.nr + ". " + item.n);
+    lines.push("");
+    lines.push("**Delområde:** " + (item.sub || "–") + "  ");
+    lines.push("**Beskrivning:** " + (item.d || "–"));
+    lines.push("");
+    PRIO_SECTIONS.forEach(section => {
+      lines.push("## " + section.nr + ". " + section.title);
+      lines.push("");
+      section.fields.forEach(f => {
+        const hasOv = ov.fields && ov.fields[f.key] !== undefined;
+        const val = hasOv ? ov.fields[f.key] : (item[f.key] || "");
+        lines.push("**" + f.label + ":** " + (val || "–"));
+      });
+      lines.push("");
+    });
+    lines.push("## 7. Taggning");
+    lines.push("");
+    const tags = ov.tags || {};
+    TAG_GROUPS.forEach(g => {
+      const sel = tags[g.key] || [];
+      lines.push("**" + g.label + ":** " + (sel.length > 0 ? sel.join(", ") : "–"));
+    });
+    lines.push("");
+    lines.push("## 8. Kopplingar");
+    lines.push("");
+    const conns = ov.connections || [];
+    if (conns.length === 0) { lines.push("Inga kopplingar"); }
+    else {
+      conns.forEach(c => {
+        const target = data.find(d => d.nr === c.nr);
+        const name = target ? target.n : "Nr " + c.nr;
+        const cats = (c.cats || []).join(", ");
+        lines.push("- **" + c.nr + ". " + name + "**" + (cats ? " (" + cats + ")" : ""));
+      });
+    }
+    lines.push("");
+    return lines.join("\n");
+  };
+
+  const exportMarkdown = () => {
+    const items = starred.filter(i => selectedExport.has(i.nr));
+    if (items.length === 0) return;
+    const parts = items.map(item => buildCardMarkdown(item, overrides[item.nr] || {}));
+    const md = "# Prioriterade initiativ — Export\n\n_Exporterad " + new Date().toLocaleDateString("sv-SE") + "_\n\n---\n\n" + parts.join("\n---\n\n");
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "prioriterade-initiativ-" + new Date().toISOString().slice(0, 10) + ".md";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printCards = () => {
+    const items = starred.filter(i => selectedExport.has(i.nr));
+    if (items.length === 0) return;
+    const parts = items.map(item => {
+      const ov = overrides[item.nr] || {};
+      let html = '<div style="page-break-after:always;font-family:system-ui,sans-serif;max-width:700px;margin:0 auto;padding:20px 0">';
+      html += '<h1 style="font-size:22px;color:#0f1f2e;border-bottom:2px solid #1B3A5C;padding-bottom:8px">' + item.nr + '. ' + item.n + '</h1>';
+      html += '<p style="color:#3a4a5a;font-size:13px"><strong>Delområde:</strong> ' + (item.sub || '–') + '</p>';
+      html += '<p style="color:#1a1a1a;font-size:13px">' + (item.d || '') + '</p>';
+      PRIO_SECTIONS.forEach(section => {
+        html += '<h2 style="font-size:15px;color:#1B3A5C;margin-top:18px;border-left:3px solid #1B3A5C;padding-left:8px">' + section.nr + '. ' + section.title + '</h2>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12.5px">';
+        section.fields.forEach(f => {
+          const hasOvF = ov.fields && ov.fields[f.key] !== undefined;
+          const val = hasOvF ? ov.fields[f.key] : (item[f.key] || '');
+          html += '<tr><td style="padding:4px 8px;font-weight:700;color:#2c3e50;width:180px;vertical-align:top;border-bottom:1px solid #eee">' + f.label + '</td>';
+          html += '<td style="padding:4px 8px;color:#1a1a1a;border-bottom:1px solid #eee">' + (val || '<span style="color:#999">–</span>') + '</td></tr>';
+        });
+        html += '</table>';
+      });
+      html += '<h2 style="font-size:15px;color:#1B3A5C;margin-top:18px;border-left:3px solid #1B3A5C;padding-left:8px">7. Taggning</h2>';
+      const tags = ov.tags || {};
+      TAG_GROUPS.forEach(g => {
+        const sel = tags[g.key] || [];
+        html += '<p style="font-size:12.5px;margin:4px 0"><strong>' + g.label + ':</strong> ' + (sel.length > 0 ? sel.map(t => '<span style="background:#1B3A5C;color:#fff;padding:1px 7px;border-radius:8px;font-size:11px;margin-right:3px">' + t + '</span>').join(' ') : '–') + '</p>';
+      });
+      html += '<h2 style="font-size:15px;color:#1B3A5C;margin-top:18px;border-left:3px solid #1B3A5C;padding-left:8px">8. Kopplingar</h2>';
+      const conns = ov.connections || [];
+      if (conns.length === 0) { html += '<p style="font-size:12.5px;color:#999">Inga kopplingar</p>'; }
+      else {
+        html += '<ul style="font-size:12.5px;padding-left:20px">';
+        conns.forEach(c => {
+          const target = data.find(dd => dd.nr === c.nr);
+          const name = target ? target.n : 'Nr ' + c.nr;
+          const cats = (c.cats || []).map(cat => '<span style="background:' + (CAT_COLORS[cat] || '#6B7280') + ';color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px">' + cat + '</span>').join('');
+          html += '<li><strong>' + c.nr + '. ' + name + '</strong>' + cats + '</li>';
+        });
+        html += '</ul>';
+      }
+      html += '</div>';
+      return html;
+    });
+    const w = window.open('', '_blank');
+    w.document.write('<html><head><title>Prioriterade initiativ</title></head><body style="margin:0;padding:20px">' + parts.join('') + '</body></html>');
+    w.document.close();
+    w.print();
+  };
+
   if (starred.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: 60, color: "#5a6a7a" }}>
@@ -1383,9 +1490,24 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
   }
   return (
     <div style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f1f2e", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
-        <p style={{ fontSize: 13, color: "#3a4a5a", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
+      <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f1f2e", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
+          <p style={{ fontSize: 13, color: "#3a4a5a", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={selectAllForExport} style={{ fontSize: 12, fontWeight: 600, color: "#1B3A5C", background: "#fff", border: "1.5px solid #1B3A5C", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}>
+            {selectedExport.size === starred.length ? "Avmarkera alla" : "Markera alla"}
+          </button>
+          {selectedExport.size > 0 && (<>
+            <button onClick={exportMarkdown} style={{ fontSize: 12, fontWeight: 600, color: "#fff", background: "#1B3A5C", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
+              Exportera .md ({selectedExport.size})
+            </button>
+            <button onClick={printCards} style={{ fontSize: 12, fontWeight: 600, color: "#fff", background: "#1B3A5C", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
+              Skriv ut / PDF ({selectedExport.size})
+            </button>
+          </>)}
+        </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {starred.map(item => {
@@ -1397,6 +1519,7 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
               <div style={{ height: 4, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
               <div style={{ padding: "18px 24px 22px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                  <input type="checkbox" checked={selectedExport.has(item.nr)} onChange={() => toggleExportSelect(item.nr)} style={{ width: 16, height: 16, accentColor: "#1B3A5C", cursor: "pointer", flexShrink: 0 }} title="Markera för export/utskrift" />
                   <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "3px 10px", borderRadius: 6 }}>{item.sub}</span>
                   <span style={{ fontSize: 11, color: "#3a4a5a", fontWeight: 600 }}>Nr {item.nr}</span>
                   <span style={{ fontSize: 13 }}>⭐</span>
