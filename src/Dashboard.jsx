@@ -123,6 +123,13 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     getOverride(item.nr).then(ov => setOverride(ov));
+    const sub = subscribeToTable('overrides', (payload) => {
+      if (payload.new && payload.new.nr === item.nr) {
+        const fallback = { fields: {}, arbetaVidere: false, qa: {}, infoGathering: {}, maturity: null, jurisdictions: [], jurisdictionOther: "", sources: [], fieldHistory: {} };
+        setOverride({ ...fallback, ...payload.new.data });
+      }
+    });
+    return () => sub.unsubscribe();
   }, [item.nr]);
   const handleSave = async () => {
     await saveOverride(item.nr, override);
@@ -1121,15 +1128,40 @@ function MapView({ data, onClickItem }) {
   );
 }
 /* ─────────── PRIORITIZED VIEW (Prioriterade) ─────────── */
-const PRIO_FIELDS = [
-  { key: "ans", label: "Ansvarig" },
-  { key: "fok", label: "Hälsodatafokus" },
-  { key: "typ", label: "Typ" },
-  { key: "mg", label: "Målgrupp" },
-  { key: "nk", label: "Nyckelkaraktäristik" },
-  { key: "akt", label: "Aktörer" },
-  { key: "ds", label: "Datastandarder" },
-  { key: "tek", label: "Teknik" },
+const PRIO_SECTIONS = [
+  { title: "Syfte & behov", nr: 1, fields: [
+    { key: "fok", label: "Hälsodatafokus", hint: "Vilken typ av hälsodata hanteras? Vilka datatyper och dataflöden omfattas?" },
+    { key: "typ", label: "Typ", hint: "T.ex. register, plattform, standard, kvalitetssystem…" },
+    { key: "nk", label: "Nyckelkaraktäristik", hint: "Vad utmärker initiativet? Syfte, omfattning och funktionalitet" },
+    { key: "status", label: "Status", hint: "Under utveckling / driftsatt / används i projektform / används rutinmässigt för vård eller forskning" },
+    { key: "behov", label: "Behov & gap", hint: "Vilka prioriterade behov fyller initiativet utifrån vård- och forskningsändamål? Vilka gap finns?" },
+    { key: "behovsniva", label: "Behovsnivå", hint: "Nationellt, regionalt eller lokalt behov?" },
+    { key: "overlap", label: "Överlapp med andra infrastrukturer", hint: "Vilka infrastrukturer överlappar? Typ av överlapp (funktionell / data / målgrupp) och grad (låg / medel / hög)" },
+  ]},
+  { title: "Nyttjande & effekt", nr: 2, fields: [
+    { key: "mg", label: "Målgrupp", hint: "Vem använder infrastrukturen?" },
+    { key: "anvtyp", label: "Användningstyp", hint: "Forskning, klinik, AI, verksamhetsutveckling, kvalitetsarbete?" },
+    { key: "nyttjande", label: "Nyttjandegrad", hint: "Antal användare, projekt och regioner. Konkreta nyttor och utfall" },
+    { key: "forutsattningar", label: "Förutsättningar för nyttjande", hint: "Vad krävs av regionerna? Resurser, kompetenser och andra förutsättningar för dataproduktion, överföring, lagring och användning" },
+    { key: "outnyttjat", label: "Outnyttjad kapacitet", hint: "Vad finns men används inte? Potential för breddad användning" },
+  ]},
+  { title: "Organisation & ägarskap", nr: 3, fields: [
+    { key: "ans", label: "Ansvarig", hint: "Vem ansvarar för initiativet?" },
+    { key: "akt", label: "Aktörer", hint: "Vilka organisationer är involverade?" },
+    { key: "agarskap", label: "Ägandeskap & åtagande", hint: "Regionernas åtagande och ägandeskap. Villkor för överlåtelse (lärarundantag, fribrev, kommersiella avtal). Ansvar, beslutsbefogenheter, nyttjanderätter" },
+    { key: "styrning", label: "Styrning & samverkan", hint: "Beslutsstruktur och organisation. Möjlighet till ökat nyttjande av regionerna? Förutsättningar för samtliga 21 regioner att delta" },
+  ]},
+  { title: "Teknik & standarder", nr: 4, fields: [
+    { key: "tek", label: "Teknik", hint: "Teknisk uppbyggnad: central lagring, on-prem, off-prem, molntjänst (t.ex. Azure)?" },
+    { key: "ds", label: "Datastandarder", hint: "Vilka standarder används och stöds? Strategisk inriktning för standarder" },
+  ]},
+  { title: "Ekonomi & strategi", nr: 5, fields: [
+    { key: "ekonomi", label: "Ekonomisk modell", hint: "Hittills nedlagda kostnader, regionernas och andra finansiärers åtagande, fördelning av kostnader för utveckling, drift och förvaltning" },
+    { key: "strategi", label: "Strategisk betydelse", hint: "Kritikalitet för vård, forskning och nationella mål (t.ex. EHDS). Framtida potential och möjlighet till breddad användning" },
+  ]},
+  { title: "Övrigt", nr: 6, fields: [
+    { key: "ovrigt", label: "Övriga kommentarer", hint: "Övriga relevanta frågeställningar, observationer eller noteringar" },
+  ]},
 ];
 function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
   const [editing, setEditing] = useState(false);
@@ -1152,15 +1184,16 @@ function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
     return (
       <textarea defaultValue={displayVal} rows={2} autoFocus onBlur={e => save(e.target.value)}
         onKeyDown={e => { if (e.key === "Escape") setEditing(false); }}
-        style={{ width: "100%", border: "1px solid #4285F4", borderRadius: 6, padding: "5px 8px", fontSize: 11.5, resize: "vertical", fontFamily: "inherit", minHeight: 40 }} />
+        placeholder={field.hint || ""}
+        style={{ width: "100%", border: "1.5px solid #1B3A5C", borderRadius: 6, padding: "6px 10px", fontSize: 13, resize: "vertical", fontFamily: "inherit", minHeight: 44, lineHeight: 1.5, color: "#1a1a1a" }} />
     );
   }
   return (
-    <div onClick={() => setEditing(true)} style={{ cursor: "pointer", fontSize: 11.5, color: displayVal ? "#374151" : "#CBD5E1", lineHeight: 1.5, minHeight: 18, borderRadius: 4, padding: "2px 4px", transition: "background 0.15s" }}
-      onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; }}
+    <div onClick={() => setEditing(true)} style={{ cursor: "pointer", fontSize: 13, color: displayVal ? "#1a1a1a" : "#7a8a9e", lineHeight: 1.55, minHeight: 22, borderRadius: 5, padding: "3px 6px", transition: "background 0.15s", fontStyle: displayVal ? "normal" : "italic" }}
+      onMouseEnter={e => { e.currentTarget.style.background = "#E8EDF2"; }}
       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-      {displayVal || "Klicka för att redigera..."}
-      {hasOv && <span style={{ fontSize: 8, color: "#F59E0B", marginLeft: 4 }}>✏️</span>}
+      {displayVal || (field.hint || "Klicka för att redigera…")}
+      {hasOv && <span style={{ fontSize: 9, color: "#D97706", marginLeft: 4 }}>✏️</span>}
     </div>
   );
 }
@@ -1185,42 +1218,53 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
   };
   if (starred.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 60, color: "#9CA3AF" }}>
-        <span style={{ fontSize: 40, display: "block", marginBottom: 12, opacity: 0.4 }}>⭐</span>
-        <p style={{ fontSize: 15, fontWeight: 600 }}>Inga prioriterade initiativ</p>
-        <p style={{ fontSize: 13 }}>Öppna ett kort och klicka "Arbeta vidare" för att stjärnmarkera det</p>
+      <div style={{ textAlign: "center", padding: 60, color: "#5a6a7a" }}>
+        <span style={{ fontSize: 40, display: "block", marginBottom: 12 }}>⭐</span>
+        <p style={{ fontSize: 15, fontWeight: 600, color: "#1B3A5C" }}>Inga prioriterade initiativ</p>
+        <p style={{ fontSize: 13, color: "#3a4a5a" }}>Öppna ett kort och klicka "Arbeta vidare" för att stjärnmarkera det</p>
       </div>
     );
   }
   return (
     <div style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1B3A5C", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
-        <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f1f2e", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
+        <p style={{ fontSize: 13, color: "#3a4a5a", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {starred.map(item => {
           const col = DEL_COLORS[item.del];
           const ov = overrides[item.nr];
           if (!ov) return null;
           return (
-            <div key={item.nr} style={{ background: "#fff", borderRadius: 12, border: `1px solid #F59E0B`, boxShadow: "0 0 0 1px #F59E0B22, 0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
-              <div style={{ height: 3, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
-              <div style={{ padding: "14px 20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "2px 8px", borderRadius: 5 }}>{item.sub}</span>
-                  <span style={{ fontSize: 11, color: "#6B7280" }}>Nr {item.nr}</span>
-                  <span style={{ fontSize: 12 }}>⭐</span>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
+            <div key={item.nr} style={{ background: "#fff", borderRadius: 14, border: "1px solid #D0D7DE", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+              <div style={{ height: 4, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
+              <div style={{ padding: "18px 24px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "3px 10px", borderRadius: 6 }}>{item.sub}</span>
+                  <span style={{ fontSize: 11, color: "#3a4a5a", fontWeight: 600 }}>Nr {item.nr}</span>
+                  <span style={{ fontSize: 13 }}>⭐</span>
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: "#0f1f2e", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px" }}>
-                  {PRIO_FIELDS.map(f => (
-                    <div key={f.key}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 1 }}>{f.label}</div>
-                      <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
+                {PRIO_SECTIONS.map(section => (
+                  <div key={section.title} style={{ marginBottom: 16 }}>
+                    <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
+                      <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
+                        <span style={{ color: "#5a7a9a", marginRight: 6 }}>{section.nr}.</span>{section.title}
+                      </h4>
                     </div>
-                  ))}
-                </div>
+                    <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: section.fields.length === 1 ? "1fr" : "1fr 1fr", gap: "10px 24px" }}>
+                        {section.fields.map(f => (
+                          <div key={f.key}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#2c3e50", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 }}>{f.label}</div>
+                            <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           );
