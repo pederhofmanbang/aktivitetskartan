@@ -1128,15 +1128,33 @@ function MapView({ data, onClickItem }) {
   );
 }
 /* ─────────── PRIORITIZED VIEW (Prioriterade) ─────────── */
-const PRIO_FIELDS = [
-  { key: "ans", label: "Ansvarig" },
-  { key: "fok", label: "Hälsodatafokus" },
-  { key: "typ", label: "Typ" },
-  { key: "mg", label: "Målgrupp" },
-  { key: "nk", label: "Nyckelkaraktäristik" },
-  { key: "akt", label: "Aktörer" },
-  { key: "ds", label: "Datastandarder" },
-  { key: "tek", label: "Teknik" },
+const PRIO_SECTIONS = [
+  { title: "Syfte & behov", color: "#0F766E", bg: "#F0FDFA", fields: [
+    { key: "fok", label: "Hälsodatafokus", hint: "Vilken typ av hälsodata hanteras?" },
+    { key: "typ", label: "Typ", hint: "T.ex. register, plattform, standard…" },
+    { key: "nk", label: "Nyckelkaraktäristik", hint: "Vad utmärker initiativet?" },
+    { key: "behov", label: "Behov & gap", hint: "Vilka prioriterade behov fyller initiativet? Vilka gap finns?" },
+    { key: "overlap", label: "Överlapp", hint: "Relation/överlapp med andra infrastrukturer" },
+  ]},
+  { title: "Nyttjande & effekt", color: "#15803D", bg: "#F0FDF4", fields: [
+    { key: "mg", label: "Målgrupp", hint: "Vem använder det?" },
+    { key: "nyttjande", label: "Nyttjandegrad", hint: "Antal användare, regioner, projekt, konkreta nyttoexempel" },
+    { key: "outnyttjat", label: "Outnyttjad kapacitet", hint: "Vad finns men används inte?" },
+  ]},
+  { title: "Organisation & ägarskap", color: "#7E22CE", bg: "#FAF5FF", fields: [
+    { key: "ans", label: "Ansvarig", hint: "Vem ansvarar för initiativet?" },
+    { key: "akt", label: "Aktörer", hint: "Vilka organisationer är involverade?" },
+    { key: "agarskap", label: "Ägandeskap & åtagande", hint: "Regionernas engagemang, villkor för överföring" },
+    { key: "styrning", label: "Styrning & samverkan", hint: "Beslutsstruktur, möjlighet till ökad regional användning" },
+  ]},
+  { title: "Teknik & standarder", color: "#C2410C", bg: "#FFF7ED", fields: [
+    { key: "tek", label: "Teknik", hint: "Teknisk uppbyggnad — centralt, on-prem, moln?" },
+    { key: "ds", label: "Datastandarder", hint: "Vilka standarder används?" },
+  ]},
+  { title: "Ekonomi & strategi", color: "#1E40AF", bg: "#EFF6FF", fields: [
+    { key: "ekonomi", label: "Ekonomisk modell", hint: "Kostnader, finansiering, licensavtal" },
+    { key: "strategi", label: "Strategisk betydelse", hint: "Kritikalitet, framtidspotential, beroenden" },
+  ]},
 ];
 function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
   const [editing, setEditing] = useState(false);
@@ -1159,15 +1177,16 @@ function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
     return (
       <textarea defaultValue={displayVal} rows={2} autoFocus onBlur={e => save(e.target.value)}
         onKeyDown={e => { if (e.key === "Escape") setEditing(false); }}
-        style={{ width: "100%", border: "1px solid #4285F4", borderRadius: 6, padding: "5px 8px", fontSize: 11.5, resize: "vertical", fontFamily: "inherit", minHeight: 40 }} />
+        placeholder={field.hint || ""}
+        style={{ width: "100%", border: "1px solid #4285F4", borderRadius: 6, padding: "6px 10px", fontSize: 12.5, resize: "vertical", fontFamily: "inherit", minHeight: 44, lineHeight: 1.5 }} />
     );
   }
   return (
-    <div onClick={() => setEditing(true)} style={{ cursor: "pointer", fontSize: 11.5, color: displayVal ? "#374151" : "#CBD5E1", lineHeight: 1.5, minHeight: 18, borderRadius: 4, padding: "2px 4px", transition: "background 0.15s" }}
+    <div onClick={() => setEditing(true)} style={{ cursor: "pointer", fontSize: 12.5, color: displayVal ? "#111827" : "#94A3B8", lineHeight: 1.5, minHeight: 20, borderRadius: 5, padding: "3px 6px", transition: "background 0.15s" }}
       onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; }}
       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-      {displayVal || "Klicka för att redigera..."}
-      {hasOv && <span style={{ fontSize: 8, color: "#F59E0B", marginLeft: 4 }}>✏️</span>}
+      {displayVal || (field.hint || "Klicka för att redigera…")}
+      {hasOv && <span style={{ fontSize: 9, color: "#F59E0B", marginLeft: 4 }}>✏️</span>}
     </div>
   );
 }
@@ -1201,33 +1220,42 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
   }
   return (
     <div style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1B3A5C", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
-        <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1B3A5C", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
+        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {starred.map(item => {
           const col = DEL_COLORS[item.del];
           const ov = overrides[item.nr];
           if (!ov) return null;
           return (
-            <div key={item.nr} style={{ background: "#fff", borderRadius: 12, border: `1px solid #F59E0B`, boxShadow: "0 0 0 1px #F59E0B22, 0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
-              <div style={{ height: 3, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
-              <div style={{ padding: "14px 20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "2px 8px", borderRadius: 5 }}>{item.sub}</span>
-                  <span style={{ fontSize: 11, color: "#6B7280" }}>Nr {item.nr}</span>
-                  <span style={{ fontSize: 12 }}>⭐</span>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
+            <div key={item.nr} style={{ background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ height: 4, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
+              <div style={{ padding: "16px 24px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "3px 10px", borderRadius: 6 }}>{item.sub}</span>
+                  <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 500 }}>Nr {item.nr}</span>
+                  <span style={{ fontSize: 13 }}>⭐</span>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px" }}>
-                  {PRIO_FIELDS.map(f => (
-                    <div key={f.key}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 1 }}>{f.label}</div>
-                      <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
+                {PRIO_SECTIONS.map(section => (
+                  <div key={section.title} style={{ marginBottom: 14 }}>
+                    <div style={{ borderLeft: `3px solid ${section.color}`, paddingLeft: 10, marginBottom: 8 }}>
+                      <h4 style={{ fontSize: 12, fontWeight: 700, color: section.color, margin: 0, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>{section.title}</h4>
                     </div>
-                  ))}
-                </div>
+                    <div style={{ background: section.bg, borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+                        {section.fields.map(f => (
+                          <div key={f.key}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2 }}>{f.label}</div>
+                            <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           );
