@@ -1127,6 +1127,162 @@ function MapView({ data, onClickItem }) {
     </div>
   );
 }
+/* ─────────── TAG GROUPS & CONNECTION CATEGORIES ─────────── */
+const TAG_GROUPS = [
+  { key: "standarder", label: "Standarder", tags: ["OMOP", "OpenEHR", "HL7", "FHIR", "Health D-CAT AP", "GA4GH", "ICD-10", "Snomed CT", "KVÅ", "NTjP", "ATC", "GSIM"] },
+  { key: "anvfall", label: "Användningsfall", tags: ["Vård av patient", "Vård av annan patient", "Precisionsmedicin", "PROM", "PREM", "Innovation", "Styrning", "Analys", "Uppföljning", "Forskning", "Life science", "Kvalitetsregister", "Hälsodataregister"] },
+  { key: "anvomrade", label: "Användningsområde", tags: ["Genomik", "Biobank", "Sekundäranvändning", "Primäranvändning"] },
+];
+const CONNECTION_CATS = ["Samskapa", "Överlapp", "Stötta", "Docka in i", "Lära av", "Hålla koll på"];
+const CAT_COLORS = { "Samskapa": "#1A56DB", "Överlapp": "#B45309", "Stötta": "#166534", "Docka in i": "#7E22CE", "Lära av": "#0F766E", "Hålla koll på": "#6B7280" };
+
+function TagGroupPicker({ override, setOverride, autoSave, itemNr }) {
+  const [openGroup, setOpenGroup] = useState(null);
+  const tags = (override && override.tags) || {};
+  const toggle = (groupKey, tag) => {
+    const next = JSON.parse(JSON.stringify(override));
+    if (!next.tags) next.tags = {};
+    if (!next.tags[groupKey]) next.tags[groupKey] = [];
+    const idx = next.tags[groupKey].indexOf(tag);
+    if (idx >= 0) next.tags[groupKey].splice(idx, 1); else next.tags[groupKey].push(tag);
+    setOverride(next);
+    if (autoSave) autoSave(next);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {TAG_GROUPS.map(g => {
+        const selected = tags[g.key] || [];
+        const isOpen = openGroup === g.key;
+        return (
+          <div key={g.key}>
+            <div onClick={() => setOpenGroup(isOpen ? null : g.key)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#1B3A5C", textTransform: "uppercase", letterSpacing: 0.4 }}>{g.label}</span>
+              <span style={{ fontSize: 10, color: "#5a7a9a" }}>({selected.length})</span>
+              <span style={{ fontSize: 10, color: "#5a7a9a", marginLeft: 2 }}>{isOpen ? "▾" : "▸"}</span>
+            </div>
+            {selected.length > 0 && !isOpen && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {selected.map(t => (
+                  <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "#1B3A5C", color: "#fff", fontWeight: 600 }}>{t}</span>
+                ))}
+              </div>
+            )}
+            {isOpen && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "8px 0" }}>
+                {g.tags.map(t => {
+                  const sel = selected.includes(t);
+                  return (
+                    <span key={t} onClick={() => toggle(g.key, t)} style={{ fontSize: 11.5, padding: "3px 10px", borderRadius: 10, cursor: "pointer", fontWeight: 600, border: sel ? "1.5px solid #1B3A5C" : "1.5px solid #C0C8D0", background: sel ? "#1B3A5C" : "#fff", color: sel ? "#fff" : "#2c3e50", transition: "all 0.15s" }}>{t}</span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ConnectionPicker({ itemNr, starred, override, setOverride, autoSave, overridesCache }) {
+  const [open, setOpen] = useState(false);
+  const [editingNr, setEditingNr] = useState(null);
+  const connections = (override && override.connections) || [];
+  const others = starred.filter(i => i.nr !== itemNr);
+  const connMap = {};
+  connections.forEach(c => { connMap[c.nr] = c.cats || []; });
+
+  const toggleConnection = (targetNr) => {
+    const next = JSON.parse(JSON.stringify(override));
+    if (!next.connections) next.connections = [];
+    const idx = next.connections.findIndex(c => c.nr === targetNr);
+    if (idx >= 0) {
+      next.connections.splice(idx, 1);
+      if (editingNr === targetNr) setEditingNr(null);
+    } else {
+      next.connections.push({ nr: targetNr, cats: [] });
+      setEditingNr(targetNr);
+    }
+    setOverride(next);
+    if (autoSave) autoSave(next);
+  };
+
+  const toggleCat = (targetNr, cat) => {
+    const next = JSON.parse(JSON.stringify(override));
+    if (!next.connections) next.connections = [];
+    const conn = next.connections.find(c => c.nr === targetNr);
+    if (!conn) return;
+    if (!conn.cats) conn.cats = [];
+    const idx = conn.cats.indexOf(cat);
+    if (idx >= 0) conn.cats.splice(idx, 1); else conn.cats.push(cat);
+    setOverride(next);
+    if (autoSave) autoSave(next);
+  };
+
+  const connectedItems = connections.filter(c => others.some(o => o.nr === c.nr));
+
+  return (
+    <div>
+      {connectedItems.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: open ? 12 : 0 }}>
+          {connectedItems.map(c => {
+            const item = others.find(o => o.nr === c.nr);
+            if (!item) return null;
+            const col = DEL_COLORS[item.del] || DEL_COLORS.A;
+            return (
+              <div key={c.nr} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#F6F8FA", borderRadius: 8, border: "1px solid #D0D7DE" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "1px 6px", borderRadius: 4 }}>{item.nr}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#0f1f2e", flex: 1 }}>{item.n.length > 40 ? item.n.substring(0, 40) + "…" : item.n}</span>
+                <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                  {(c.cats || []).map(cat => (
+                    <span key={cat} style={{ fontSize: 9.5, padding: "1px 6px", borderRadius: 8, background: CAT_COLORS[cat] || "#6B7280", color: "#fff", fontWeight: 600 }}>{cat}</span>
+                  ))}
+                </div>
+                <span onClick={() => setEditingNr(editingNr === c.nr ? null : c.nr)} style={{ cursor: "pointer", fontSize: 11, color: "#5a7a9a", fontWeight: 600 }}>✎</span>
+                <span onClick={() => toggleConnection(c.nr)} style={{ cursor: "pointer", fontSize: 13, color: "#B91C1C", fontWeight: 600, lineHeight: 1 }}>×</span>
+              </div>
+            );
+          })}
+          {editingNr && connMap[editingNr] !== undefined && (
+            <div style={{ padding: "8px 12px", background: "#EFF2F5", borderRadius: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#1B3A5C", textTransform: "uppercase", marginBottom: 6 }}>Kategorisera koppling till #{editingNr}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {CONNECTION_CATS.map(cat => {
+                  const sel = (connMap[editingNr] || []).includes(cat);
+                  return (
+                    <span key={cat} onClick={() => toggleCat(editingNr, cat)} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 10, cursor: "pointer", fontWeight: 600, border: sel ? "none" : "1.5px solid #C0C8D0", background: sel ? (CAT_COLORS[cat] || "#6B7280") : "#fff", color: sel ? "#fff" : "#2c3e50", transition: "all 0.15s" }}>{cat}</span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <button onClick={() => setOpen(!open)} style={{ fontSize: 12, fontWeight: 600, color: "#1B3A5C", background: "none", border: "1.5px solid #1B3A5C", borderRadius: 8, padding: "5px 14px", cursor: "pointer", marginTop: connectedItems.length > 0 ? 8 : 0 }}>
+        {open ? "Stäng" : "+ Koppla till annat initiativ"}
+      </button>
+      {open && (
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+          {others.map(item => {
+            const isConn = connMap[item.nr] !== undefined;
+            const col = DEL_COLORS[item.del] || DEL_COLORS.A;
+            return (
+              <div key={item.nr} onClick={() => { toggleConnection(item.nr); }} style={{ padding: "8px 12px", borderRadius: 8, cursor: "pointer", border: isConn ? "2px solid #1B3A5C" : "1.5px solid #D0D7DE", background: isConn ? "#E8EDF5" : "#fff", transition: "all 0.15s" }}
+                onMouseEnter={e => { if (!isConn) e.currentTarget.style.borderColor = "#7a8a9e"; }} onMouseLeave={e => { if (!isConn) e.currentTarget.style.borderColor = "#D0D7DE"; }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: col.text, background: col.bg, padding: "1px 5px", borderRadius: 4 }}>{item.nr}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: "#0f1f2e" }}>{item.n.length > 30 ? item.n.substring(0, 30) + "…" : item.n}</span>
+                  {isConn && <span style={{ marginLeft: "auto", fontSize: 14, color: "#1B3A5C" }}>✓</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─────────── PRIORITIZED VIEW (Prioriterade) ─────────── */
 const PRIO_SECTIONS = [
   { title: "Syfte & behov", nr: 1, fields: [
@@ -1265,10 +1421,166 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
                     </div>
                   </div>
                 ))}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
+                    <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
+                      <span style={{ color: "#5a7a9a", marginRight: 6 }}>7.</span>Taggning
+                    </h4>
+                  </div>
+                  <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
+                    <TagGroupPicker override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} itemNr={item.nr} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
+                    <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
+                      <span style={{ color: "#5a7a9a", marginRight: 6 }}>8.</span>Kopplingar till andra prioriterade
+                    </h4>
+                  </div>
+                  <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
+                    <ConnectionPicker itemNr={item.nr} starred={starred} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} overridesCache={overridesCache} />
+                  </div>
+                </div>
               </div>
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+/* ─────────── PRIO NETWORK VIEW ─────────── */
+function PrioNetworkView({ data, overridesCache, onClickItem }) {
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+  const [dims, setDims] = useState({ w: 900, h: 600 });
+  const [hovered, setHovered] = useState(null);
+  const simRef = useRef(null);
+  const starred = useMemo(() => data.filter(i => {
+    const ov = overridesCache[i.nr];
+    return ov && ov.arbetaVidere;
+  }), [data, overridesCache]);
+  const dataMap = useMemo(() => { const m = {}; starred.forEach(d => m[d.nr] = d); return m; }, [starred]);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 100 && height > 100) setDims({ w: width, h: height });
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!svgRef.current || starred.length === 0) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+    const { w, h } = dims;
+    const nodes = starred.map(d => {
+      const ov = overridesCache[d.nr] || {};
+      const conns = (ov.connections || []).filter(c => dataMap[c.nr]);
+      return { id: d.nr, nr: d.nr, label: "#" + d.nr + " " + (d.n.length > 22 ? d.n.substring(0, 22) + "…" : d.n), shortLabel: "#" + d.nr, fullName: d.n, del: d.del, typ: d.typ, connCount: conns.length, r: Math.max(12, Math.min(26, 10 + conns.length * 3)) };
+    });
+    const nodeSet = new Set(starred.map(d => d.nr));
+    const links = [];
+    const linkSet = new Set();
+    starred.forEach(d => {
+      const ov = overridesCache[d.nr] || {};
+      (ov.connections || []).forEach(c => {
+        if (!nodeSet.has(c.nr)) return;
+        const key = Math.min(d.nr, c.nr) + "-" + Math.max(d.nr, c.nr);
+        if (!linkSet.has(key)) {
+          linkSet.add(key);
+          links.push({ source: d.nr, target: c.nr, cats: c.cats || [], sourceNr: d.nr });
+        }
+      });
+    });
+    const g = svg.append("g");
+    const zoom = d3.zoom().scaleExtent([0.3, 4]).on("zoom", e => g.attr("transform", e.transform));
+    svg.call(zoom);
+    const link = g.append("g").selectAll("line").data(links).join("line")
+      .attr("stroke", d => { const c = d.cats[0]; return c ? (CAT_COLORS[c] || "#9CA3AF") : "#C0C8D0"; })
+      .attr("stroke-width", d => d.cats.length > 0 ? 2.5 : 1.5)
+      .attr("stroke-dasharray", d => d.cats.length === 0 ? "4,3" : "none");
+    const linkLabels = g.append("g").selectAll("text").data(links.filter(l => l.cats.length > 0)).join("text")
+      .text(d => d.cats.join(", "))
+      .attr("font-size", 8.5).attr("font-weight", 600).attr("fill", d => { const c = d.cats[0]; return c ? (CAT_COLORS[c] || "#6B7280") : "#6B7280"; })
+      .attr("text-anchor", "middle").attr("font-family", "'DM Sans', sans-serif");
+    const node = g.append("g").selectAll("g").data(nodes, d => d.id).join("g").attr("cursor", "pointer");
+    node.each(function(d) {
+      const el = d3.select(this);
+      const col = DEL_COLORS[d.del] || DEL_COLORS.A;
+      el.append("circle").attr("r", d.r).attr("fill", col.border).attr("stroke", "#0f1f2e").attr("stroke-width", 2);
+    });
+    node.append("text").text(d => d.shortLabel).attr("dy", d => d.r + 14).attr("text-anchor", "middle")
+      .attr("font-size", 10).attr("font-weight", 700).attr("fill", "#0f1f2e").attr("font-family", "'DM Sans', sans-serif");
+    const tooltip = svg.append("g").style("display", "none");
+    const ttBg = tooltip.append("rect").attr("fill", "#0f1f2e").attr("rx", 6).attr("ry", 6);
+    const ttText = tooltip.append("text").attr("fill", "#fff").attr("font-size", 12).attr("font-weight", 600).attr("font-family", "'DM Sans', sans-serif");
+    node.on("mouseover", function(event, d) {
+      d3.select(this).select("circle").attr("stroke-width", 3.5);
+      link.attr("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.15);
+      linkLabels.attr("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.15);
+      node.attr("opacity", n => {
+        if (n.id === d.id) return 1;
+        return links.some(l => (l.source.id === d.id && l.target.id === n.id) || (l.target.id === d.id && l.source.id === n.id)) ? 1 : 0.2;
+      });
+      ttText.text(d.fullName + " — " + d.connCount + " kopplingar");
+      const bbox = ttText.node().getBBox();
+      ttBg.attr("x", bbox.x - 10).attr("y", bbox.y - 5).attr("width", bbox.width + 20).attr("height", bbox.height + 10);
+      tooltip.attr("transform", "translate(" + (event.offsetX + 14) + "," + (event.offsetY - 24) + ")").style("display", null);
+      setHovered(d.nr);
+    }).on("mouseout", function() {
+      node.attr("opacity", 1);
+      d3.select(this).select("circle").attr("stroke-width", 2);
+      link.attr("opacity", 1);
+      linkLabels.attr("opacity", 1);
+      tooltip.style("display", "none");
+      setHovered(null);
+    }).on("dblclick", function(event, d) {
+      event.stopPropagation();
+      if (onClickItem && dataMap[d.nr]) onClickItem(dataMap[d.nr]);
+    });
+    const sim = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+      .force("charge", d3.forceManyBody().strength(-350))
+      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("collision", d3.forceCollide().radius(d => d.r + 10))
+      .on("tick", () => {
+        link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        linkLabels.attr("x", d => (d.source.x + d.target.x) / 2).attr("y", d => (d.source.y + d.target.y) / 2 - 5);
+        node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+      });
+    simRef.current = sim;
+    const drag = d3.drag()
+      .on("start", (event, d) => { if (!event.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on("end", (event, d) => { if (!event.active) sim.alphaTarget(0); d.fx = null; d.fy = null; });
+    node.call(drag);
+    return () => sim.stop();
+  }, [starred, overridesCache, dims, dataMap]);
+  if (starred.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 60, color: "#5a6a7a" }}>
+        <p style={{ fontSize: 15, fontWeight: 600, color: "#1B3A5C" }}>Inga prioriterade initiativ</p>
+        <p style={{ fontSize: 13, color: "#3a4a5a" }}>Stjärnmarkera initiativ och skapa kopplingar i Prioriterade-fliken</p>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ padding: "10px 16px", background: "#F6F8FA", borderBottom: "1px solid #D0D7DE", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#0f1f2e" }}>Prio-nätverk</span>
+        <span style={{ fontSize: 11, color: "#3a4a5a" }}>{starred.length} noder · Dblklick = detalj · Dra = flytta</span>
+        <div style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
+          {CONNECTION_CATS.map(cat => (
+            <span key={cat} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, color: CAT_COLORS[cat] }}>
+              <span style={{ width: 10, height: 3, borderRadius: 2, background: CAT_COLORS[cat], display: "inline-block" }} />{cat}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <svg ref={svgRef} width={dims.w} height={dims.h} style={{ background: "#FAFBFC" }} />
       </div>
     </div>
   );
@@ -2348,6 +2660,7 @@ export default function Dashboard() {
                 <button onClick={() => setViewMode("network")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "network" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "network" ? "#E8F0FE" : "#fff", color: viewMode === "network" ? "#1A56DB" : "#6B7280" }}>Nätverk</button>
                 <button onClick={() => setViewMode("map")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "map" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "map" ? "#E8F0FE" : "#fff", color: viewMode === "map" ? "#1A56DB" : "#6B7280" }}>Karta</button>
                 <button onClick={() => setViewMode("prioritized")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "prioritized" ? "1px solid #F59E0B" : "1px solid #E5E7EB", background: viewMode === "prioritized" ? "#FFFBEB" : "#fff", color: viewMode === "prioritized" ? "#B45309" : "#6B7280" }}>⭐ Prioriterade</button>
+                <button onClick={() => setViewMode("prionetwork")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "prionetwork" ? "1px solid #F59E0B" : "1px solid #E5E7EB", background: viewMode === "prionetwork" ? "#FFFBEB" : "#fff", color: viewMode === "prionetwork" ? "#B45309" : "#6B7280" }}>⭐ Prio-nätverk</button>
                 <button onClick={() => setViewMode("candidates")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "candidates" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "candidates" ? "#E8F0FE" : "#fff", color: viewMode === "candidates" ? "#1A56DB" : "#6B7280" }}>Kandidater</button>
                 <button onClick={() => setViewMode("guide")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "guide" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "guide" ? "#E8F0FE" : "#fff", color: viewMode === "guide" ? "#1A56DB" : "#6B7280" }}>Lathund</button>
               </div>
@@ -2363,11 +2676,13 @@ export default function Dashboard() {
                 </select>
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide" || viewMode === "prioritized") ? 0 : 20 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "prionetwork" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide" || viewMode === "prioritized") ? 0 : 20 }}>
               {viewMode === "guide" ? (
                 <GuideView />
               ) : viewMode === "prioritized" ? (
                 <PrioritizedView data={DATA} overridesCache={overridesCache} refreshOverrides={async () => { const cache = await getAllOverrides(); setOverridesCache(cache); }} />
+              ) : viewMode === "prionetwork" ? (
+                <PrioNetworkView data={DATA} overridesCache={overridesCache} onClickItem={item => setDetailItem(item)} />
               ) : viewMode === "candidates" ? (
                 <CandidatesView />
               ) : viewMode === "map" ? (
