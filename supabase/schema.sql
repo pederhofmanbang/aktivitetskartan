@@ -29,6 +29,13 @@ create table if not exists candidates (
   updated_at timestamptz not null default now()
 );
 
+-- 5. Analysis objects: Kontinuitet & hållbarhet — supply-chain analysis objects (single row, JSON array)
+create table if not exists analysis_objects (
+  id int primary key default 1 check (id = 1),  -- singleton row
+  data jsonb not null default '[]',
+  updated_at timestamptz not null default now()
+);
+
 -- Auto-update updated_at on every change
 create or replace function set_updated_at()
 returns trigger as $$
@@ -42,20 +49,24 @@ create trigger overrides_updated before update on overrides for each row execute
 create trigger deepdives_updated before update on deepdives for each row execute function set_updated_at();
 create trigger suggestions_updated before update on suggestions for each row execute function set_updated_at();
 create trigger candidates_updated before update on candidates for each row execute function set_updated_at();
+create trigger analysis_objects_updated before update on analysis_objects for each row execute function set_updated_at();
 
 -- Enable Row Level Security (open for now – all authenticated/anon can read+write)
 alter table overrides enable row level security;
 alter table deepdives enable row level security;
 alter table suggestions enable row level security;
 alter table candidates enable row level security;
+alter table analysis_objects enable row level security;
 
 create policy "Allow all access" on overrides for all using (true) with check (true);
 create policy "Allow all access" on deepdives for all using (true) with check (true);
 create policy "Allow all access" on suggestions for all using (true) with check (true);
 create policy "Allow all access" on candidates for all using (true) with check (true);
+create policy "Allow all access" on analysis_objects for all using (true) with check (true);
 
 -- Enable Realtime for all tables
 alter publication supabase_realtime add table overrides;
 alter publication supabase_realtime add table deepdives;
 alter publication supabase_realtime add table suggestions;
 alter publication supabase_realtime add table candidates;
+alter publication supabase_realtime add table analysis_objects;
