@@ -445,6 +445,8 @@ const LEGAL_FRAMEWORKS = [
   { key: "tech_sovereignty", namn: "Tech Sovereignty Package (framväxande)", varfor: "Kan påverka långsiktiga vägval och kontroll över strategisk digital infrastruktur." },
 ];
 const ANALYSIS_OBJECT_TYPES = ["Systemmiljö", "Dataplattform", "Leverantörsberoende", "Informationskedja", "Försörjningskedja (verksamhetsområde)"];
+// Korta kolumnetiketter för rättsliga ramverk i översiktsmatrisen.
+const LEGAL_KORT = { hsl: "HSL", psl: "PSL", pdl: "PDL", interop_se: "IntOp", gdpr: "GDPR", ehds: "EHDS", nis2: "NIS2", ai_act: "AI Act", cra: "CRA", data_act: "Data", dga: "DGA", open_data: "Öppna", iea: "IEA", digital_networks: "DigNet", tech_sovereignty: "TechSov" };
 // Metodstödets fyra steg (för accordion-rubriker i analysvyn).
 const CONTINUITY_STEPS = [
   { n: 1, label: "Avgränsa analysobjekt & samla underlag", desc: "Identifiera kritiska processer, informationstillgångar och tillämpliga rättsliga krav." },
@@ -1999,7 +2001,7 @@ function newAnalysisObject() {
   return {
     id: Date.now(), namn: "", typ: ANALYSIS_OBJECT_TYPES[0], datum: new Date().toISOString().slice(0, 10),
     beslutssituation: "", beroda: "", ambitionsniva: "", linkedInitiatives: [], underlag: "",
-    legal: {}, dimensions: {}, riskbedomning: "", slutsatser: "", atgarder: "",
+    leverantorer: [], legal: {}, dimensions: {}, riskbedomning: "", slutsatser: "", atgarder: "",
   };
 }
 function buildContinuityMarkdown(obj, allData) {
@@ -2018,6 +2020,7 @@ function buildContinuityMarkdown(obj, allData) {
     L.push("**Kopplade initiativ:** " + names.join("; "));
   }
   L.push("**Underlag:** " + (obj.underlag || "—"));
+  if (obj.leverantorer && obj.leverantorer.length) L.push("**Centrala leverantörer / plattformar:** " + obj.leverantorer.join(", "));
   L.push("");
   L.push("### Tillämpliga rättsliga ramverk");
   const relevant = LEGAL_FRAMEWORKS.filter(f => obj.legal && obj.legal[f.key] && obj.legal[f.key].relevant);
@@ -2053,6 +2056,34 @@ function downloadText(filename, text) {
 }
 const contInput = { width: "100%", border: "1px solid #E5E7EB", borderRadius: 6, padding: "6px 8px", fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" };
 const contLabel = { fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3, marginTop: 8 };
+
+function ContChipsInput({ values, onChange, placeholder }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v || values.includes(v)) { setDraft(""); return; }
+    onChange([...values, v]);
+    setDraft("");
+  };
+  return (
+    <div>
+      {values.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+          {values.map(v => (
+            <span key={v} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 12, fontSize: 11, background: "#ECFEFF", color: "#0E7490", border: "1px solid #A5F3FC" }}>
+              {v}
+              <button onClick={() => onChange(values.filter(x => x !== v))} style={{ background: "none", border: "none", cursor: "pointer", color: "#0E7490", padding: 0, fontSize: 13, lineHeight: 1 }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }} placeholder={placeholder} style={contInput} />
+        <button onClick={add} style={{ padding: "4px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #E5E7EB", background: "#fff", color: "#374151", whiteSpace: "nowrap" }}>Lägg till</button>
+      </div>
+    </div>
+  );
+}
 
 function ContScalePicker({ value, onChange }) {
   return (
@@ -2138,6 +2169,8 @@ function ContObjectEditor({ obj, onPatch, allData }) {
           <ContInitiativePicker selected={obj.linkedInitiatives || []} allData={allData} onToggle={toggleInit} />
           <label style={contLabel}>Insamlat underlag (konsekvensanalyser, RSA, kontinuitetsplaner, avtal, arkitektur...)</label>
           <textarea value={obj.underlag} onChange={e => onPatch({ underlag: e.target.value })} rows={2} style={contInput} />
+          <label style={contLabel}>Centrala leverantörer / plattformar (driver inlåsnings- och koncentrationsrisker)</label>
+          <ContChipsInput values={obj.leverantorer || []} onChange={v => onPatch({ leverantorer: v })} placeholder="T.ex. Cambio COSMIC, Microsoft Azure, Oracle Health..." />
           <label style={{ ...contLabel, marginTop: 16, fontSize: 12, color: "#1B3A5C", fontWeight: 800 }}>Tillämpliga rättsliga ramverk & styrande krav</label>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {LEGAL_FRAMEWORKS.map(f => {
@@ -2205,6 +2238,17 @@ function ContObjectEditor({ obj, onPatch, allData }) {
 
 function ContOverview({ objects, allData, onExportAll }) {
   if (objects.length === 0) return <p style={{ fontSize: 13, color: "#9CA3AF", padding: 20 }}>Inga analysobjekt än. Lägg till objekt under fliken Analysobjekt.</p>;
+  const supplierMap = {};
+  objects.forEach(o => {
+    (o.leverantorer || []).forEach(s => {
+      const k = s && s.trim(); if (!k) return;
+      if (!supplierMap[k]) supplierMap[k] = { name: k, objects: [], initSet: new Set() };
+      supplierMap[k].objects.push(o);
+      (o.linkedInitiatives || []).forEach(nr => supplierMap[k].initSet.add(nr));
+    });
+  });
+  const suppliers = Object.values(supplierMap).sort((a, b) => (b.objects.length - a.objects.length) || (b.initSet.size - a.initSet.size));
+  const maxObjs = Math.max(1, ...suppliers.map(s => s.objects.length));
   const cell = (level) => {
     const sc = level ? SCALE_BY_VALUE[level] : null;
     return <td style={{ textAlign: "center", padding: 4 }}>
@@ -2254,6 +2298,68 @@ function ContOverview({ objects, allData, onExportAll }) {
       </div>
       <div style={{ marginTop: 16, fontSize: 11, color: "#9CA3AF" }}>
         {CONTINUITY_DIMENSIONS.map((d, i) => <span key={d.key}>{d.icon} {d.label}{i < CONTINUITY_DIMENSIONS.length - 1 ? "  ·  " : ""}</span>)}
+      </div>
+
+      <h3 style={{ fontSize: 14, fontWeight: 800, color: "#1B3A5C", margin: "28px 0 4px" }}>Leverantörskoncentration</h3>
+      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 10px" }}>Vilka leverantörer och plattformar bär upp flest analysobjekt? Riskkoncentrationer enligt Metodstödet steg 2 (beroenden & inlåsning).</p>
+      {suppliers.length === 0 ? (
+        <p style={{ fontSize: 12, color: "#9CA3AF", fontStyle: "italic" }}>Inga leverantörer angivna på analysobjekten än. Lägg till under steg 1.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {suppliers.map(s => (
+            <div key={s.name} style={{ display: "grid", gridTemplateColumns: "220px 1fr 140px", gap: 10, alignItems: "center" }}>
+              <span title={s.objects.map(o => o.namn || "Namnlöst").join(", ")} style={{ fontSize: 12, color: "#1B3A5C", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+              <div style={{ background: "#F3F4F6", borderRadius: 4, height: 14, overflow: "hidden" }}>
+                <div style={{ background: "#0E7490", height: "100%", width: (s.objects.length / maxObjs * 100) + "%" }} />
+              </div>
+              <span style={{ fontSize: 10, color: "#6B7280" }}>{s.objects.length} objekt · {s.initSet.size} initiativ</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h3 style={{ fontSize: 14, fontWeight: 800, color: "#1B3A5C", margin: "28px 0 4px" }}>Ramverkstäckning</h3>
+      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 10px" }}>Vilka rättsliga ramverk har markerats som relevanta per analysobjekt? Hovra över en cell för bedömningstexten.</p>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid #E5E7EB", color: "#6B7280" }}>Analysobjekt</th>
+              {LEGAL_FRAMEWORKS.map(f => (
+                <th key={f.key} title={f.namn + " — " + f.varfor} style={{ padding: "6px 6px", borderBottom: "2px solid #E5E7EB", color: "#6B7280", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>{LEGAL_KORT[f.key] || f.key}</th>
+              ))}
+              <th style={{ padding: "6px 8px", borderBottom: "2px solid #E5E7EB", color: "#6B7280", fontSize: 10 }}>Σ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {objects.map(obj => {
+              const count = LEGAL_FRAMEWORKS.filter(f => obj.legal && obj.legal[f.key] && obj.legal[f.key].relevant).length;
+              return (
+                <tr key={obj.id}>
+                  <td style={{ padding: "6px 8px", borderBottom: "1px solid #F3F4F6", fontWeight: 600, color: "#1B3A5C" }}>{obj.namn || "Namnlöst"}</td>
+                  {LEGAL_FRAMEWORKS.map(f => {
+                    const r = obj.legal && obj.legal[f.key];
+                    const on = r && r.relevant;
+                    return (
+                      <td key={f.key} title={f.namn + (on && r.note ? " — " + r.note : "")} style={{ textAlign: "center", padding: 4, borderBottom: "1px solid #F3F4F6" }}>
+                        <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: on ? "#0E7490" : "#F3F4F6", border: on ? "none" : "1px solid #E5E7EB" }} />
+                      </td>
+                    );
+                  })}
+                  <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #F3F4F6", color: "#6B7280", fontWeight: 600 }}>{count}</td>
+                </tr>
+              );
+            })}
+            <tr>
+              <td style={{ padding: "6px 8px", borderTop: "2px solid #E5E7EB", color: "#9CA3AF", fontSize: 10 }}>Σ objekt</td>
+              {LEGAL_FRAMEWORKS.map(f => {
+                const count = objects.filter(o => o.legal && o.legal[f.key] && o.legal[f.key].relevant).length;
+                return <td key={f.key} style={{ textAlign: "center", padding: "6px 4px", borderTop: "2px solid #E5E7EB", color: "#9CA3AF", fontSize: 10 }}>{count || ""}</td>;
+              })}
+              <td style={{ borderTop: "2px solid #E5E7EB" }} />
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
