@@ -85,6 +85,27 @@ export async function saveCandidates(list) {
   }
 }
 
+// ─────────── ANALYSIS OBJECTS (Kontinuitet & hållbarhet) ───────────
+export async function getAnalysisObjects() {
+  try {
+    const { data, error } = await supabase.from('analysis_objects').select('data').eq('id', 1).maybeSingle();
+    if (error) throw error;
+    return data ? data.data : null;
+  } catch (e) {
+    console.error('getAnalysisObjects error:', e);
+    return null;
+  }
+}
+
+export async function saveAnalysisObjects(list) {
+  try {
+    const { error } = await supabase.from('analysis_objects').upsert({ id: 1, data: list }, { onConflict: 'id' });
+    if (error) throw error;
+  } catch (e) {
+    console.error('saveAnalysisObjects error:', e);
+  }
+}
+
 // ─────────── REALTIME ───────────
 // Subscribe to changes on a table. Returns an object with an unsubscribe() method.
 export function subscribeToTable(table, callback) {
