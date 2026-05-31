@@ -116,7 +116,7 @@ function ScoreBar({ label, score, comment, color = "#1B3A5C" }) {
   );
 }
 /* ─────────── DETAIL MODAL ─────────── */
-function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides }) {
+function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides, analysisObjects = [] }) {
   const [override, setOverride] = useState(null);
   const [showMeta, setShowMeta] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -153,6 +153,7 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
   const col = DEL_COLORS[item.del];
   const deps = item.dep ? item.dep.split(",").map(d => parseInt(d.trim())).filter(Boolean) : [];
   const depItems = deps.map(nr => allItems.find(i => i.nr === nr)).filter(Boolean);
+  const linkedAO = analysisObjects.filter(o => Array.isArray(o.linkedInitiatives) && o.linkedInitiatives.includes(item.nr));
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: expanded ? "stretch" : "flex-start", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", padding: expanded ? 12 : "40px 20px", overflowY: expanded ? "hidden" : "auto", transition: "padding 0.2s" }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: expanded ? 12 : 16, maxWidth: expanded ? "100%" : 720, width: "100%", boxShadow: "0 24px 48px rgba(0,0,0,0.15)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: expanded ? "100%" : "none", transition: "max-width 0.2s, border-radius 0.2s" }} onClick={e => e.stopPropagation()}>
@@ -176,6 +177,14 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
           </div>
         </div>
         <div style={{ padding: "20px 28px 28px", maxHeight: expanded ? "none" : "60vh", overflowY: "auto", flex: expanded ? 1 : "none" }}>
+          {linkedAO.length > 0 && (
+            <div style={{ marginBottom: 12, padding: "8px 12px", background: "#ECFEFF", border: "1px solid #A5F3FC", borderRadius: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#0E7490", textTransform: "uppercase", letterSpacing: "0.04em" }}>🛡️ Ingår i analysobjekt</span>
+              {linkedAO.map(o => (
+                <span key={o.id} title={o.typ} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 12, background: "#fff", border: "1px solid #A5F3FC", color: "#0E7490", fontWeight: 600 }}>{o.namn || "Namnlöst"}</span>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             <button onClick={() => setShowEdit(!showEdit)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 10.5, fontWeight: 600, cursor: "pointer", border: showEdit ? "1px solid #4285F4" : "1px solid #E5E7EB", background: showEdit ? "#E8F0FE" : "#fff", color: showEdit ? "#1A56DB" : "#6B7280", display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{fontSize:11}}>✏️</span> {showEdit ? "Stäng redigering" : "Redigera"}
@@ -405,6 +414,7 @@ const CONTINUITY_SCALE = [
   { value: "kritisk", label: "Kritisk sårbarhet", short: "Kritisk", color: "#DC2626" },
 ];
 const SCALE_BY_VALUE = Object.fromEntries(CONTINUITY_SCALE.map(s => [s.value, s]));
+const SCALE_SEVERITY = { god: 1, svaghet: 2, betydande: 3, kritisk: 4 };
 // De sex analysdimensionerna ur Metodstödet, steg 2. Varje dimension skattas + besvaras i fritext.
 const CONTINUITY_DIMENSIONS = [
   { key: "verksamhetskritikalitet", label: "Verksamhetskritikalitet", icon: "🏥",
@@ -2054,6 +2064,71 @@ function downloadText(filename, text) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+function buildContinuityObjectHtml(obj, allData) {
+  const e = escapeHtml;
+  const dimRows = CONTINUITY_DIMENSIONS.map(dim => {
+    const d = (obj.dimensions && obj.dimensions[dim.key]) || {};
+    const sc = d.level ? SCALE_BY_VALUE[d.level] : null;
+    const bodyBits = [];
+    if (d.nulage) bodyBits.push("<b>Nuläge:</b> " + e(d.nulage));
+    if (d.beroenden) bodyBits.push("<b>Beroenden:</b> " + e(d.beroenden));
+    if (d.konsekvens) bodyBits.push("<b>Konsekvenser:</b> " + e(d.konsekvens));
+    if (d.atgardsbehov) bodyBits.push("<b>Åtgärdsbehov:</b> " + e(d.atgardsbehov));
+    const body = bodyBits.length ? bodyBits.join("<br>") : "<span style='color:#9CA3AF'>—</span>";
+    const chipColor = sc ? sc.color : "#9CA3AF";
+    const chipLabel = sc ? e(sc.label) : "Ej bedömt";
+    return "<tr><th style='text-align:left;padding:8px;border:1px solid #E5E7EB;background:#FAFBFC;width:180px;vertical-align:top'>" +
+      e(dim.label) + "<br><span style='display:inline-block;margin-top:4px;padding:2px 8px;border-radius:10px;font-size:10px;color:#fff;background:" + chipColor + "'>" + chipLabel + "</span></th>" +
+      "<td style='padding:8px;border:1px solid #E5E7EB;font-size:11px;vertical-align:top'>" + body + "</td></tr>";
+  }).join("");
+  const legalItems = LEGAL_FRAMEWORKS.filter(f => obj.legal && obj.legal[f.key] && obj.legal[f.key].relevant)
+    .map(f => "<li><b>" + e(f.namn) + "</b>" + (obj.legal[f.key].note ? ": " + e(obj.legal[f.key].note) : "") + "</li>").join("");
+  const initiativeItems = (obj.linkedInitiatives || []).map(nr => {
+    const d = allData.find(x => x.nr === nr);
+    return "<li>Nr " + nr + (d ? " — " + e(d.n) : "") + "</li>";
+  }).join("");
+  return "<section class='cont-obj'>" +
+    "<h1>Kontinuitetsanalys: " + e(obj.namn || "Namnlöst analysobjekt") + "</h1>" +
+    "<div class='meta'><b>Typ:</b> " + e(obj.typ) + " &middot; <b>Datum:</b> " + e(obj.datum) + "</div>" +
+    "<h2>1. Avgränsning & underlag</h2>" +
+    "<p><b>Beslutssituation:</b> " + (e(obj.beslutssituation) || "—") + "</p>" +
+    "<p><b>Berörda verksamheter & informationsflöden:</b> " + (e(obj.beroda) || "—") + "</p>" +
+    "<p><b>Ambitionsnivå:</b> " + (e(obj.ambitionsniva) || "—") + "</p>" +
+    (initiativeItems ? "<p class='label'>Kopplade initiativ</p><ul>" + initiativeItems + "</ul>" : "") +
+    "<p><b>Underlag:</b> " + (e(obj.underlag) || "—") + "</p>" +
+    ((obj.leverantorer && obj.leverantorer.length) ? "<p><b>Centrala leverantörer / plattformar:</b> " + obj.leverantorer.map(e).join(", ") + "</p>" : "") +
+    "<p class='label'>Tillämpliga rättsliga ramverk</p>" +
+    (legalItems ? "<ul>" + legalItems + "</ul>" : "<p style='color:#9CA3AF'>Inga markerade.</p>") +
+    "<h2>2. Beroenden & dimensioner</h2>" +
+    "<table>" + dimRows + "</table>" +
+    "<h2>3. Konsekvenser, risker & sårbarheter</h2>" +
+    "<p>" + (e(obj.riskbedomning) || "—") + "</p>" +
+    "<h2>4. Slutsatser & åtgärder</h2>" +
+    "<p><b>Slutsatser:</b> " + (e(obj.slutsatser) || "—") + "</p>" +
+    "<p><b>Rekommenderade åtgärder:</b> " + (e(obj.atgarder) || "—") + "</p>" +
+    "</section>";
+}
+function openContinuityPrint(objs, allData) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const body = objs.map(o => buildContinuityObjectHtml(o, allData)).join("<div style='page-break-after:always'></div>");
+  w.document.write("<!doctype html><html><head><meta charset='utf-8'><title>Kontinuitetsanalys</title>" +
+    "<style>" +
+    "body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#111827;max-width:900px;margin:24px auto;padding:0 24px;font-size:12px;line-height:1.5}" +
+    "h1{font-size:20px;color:#1B3A5C;margin:0 0 6px}" +
+    "h2{font-size:14px;color:#1B3A5C;margin:24px 0 8px;border-bottom:2px solid #E5E7EB;padding-bottom:4px}" +
+    "table{border-collapse:collapse;width:100%;margin:8px 0}" +
+    ".meta{color:#6B7280;font-size:11px;margin-bottom:6px}" +
+    ".label{font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-top:12px}" +
+    "@media print{body{margin:0}}" +
+    "</style></head><body>" + body +
+    "<script>window.onload=function(){setTimeout(function(){window.print()},200)}</script>" +
+    "</body></html>");
+  w.document.close();
+}
 const contInput = { width: "100%", border: "1px solid #E5E7EB", borderRadius: 6, padding: "6px 8px", fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" };
 const contLabel = { fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3, marginTop: 8 };
 
@@ -2149,6 +2224,8 @@ function ContObjectEditor({ obj, onPatch, allData }) {
         <div style={{ flex: 1 }} />
         <button onClick={() => downloadText("kontinuitetsanalys-" + (obj.namn || "objekt").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".md", buildContinuityMarkdown(obj, allData))}
           style={{ padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>Exportera .md</button>
+        <button onClick={() => openContinuityPrint([obj], allData)}
+          style={{ padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #E5E7EB", background: "#fff", color: "#374151" }}>Skriv ut / PDF</button>
       </div>
       <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 10px" }}>{CONTINUITY_STEPS[step - 1].desc}</p>
 
@@ -2259,7 +2336,10 @@ function ContOverview({ objects, allData, onExportAll }) {
     <div style={{ padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h3 style={{ fontSize: 14, fontWeight: 800, color: "#1B3A5C", margin: 0 }}>Sårbarhets-heatmap — analysobjekt × dimensioner</h3>
-        <button onClick={onExportAll} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>Exportera alla (.md)</button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={onExportAll} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>Exportera alla (.md)</button>
+          <button onClick={() => openContinuityPrint(objects, allData)} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #E5E7EB", background: "#fff", color: "#374151" }}>Skriv ut alla / PDF</button>
+        </div>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
@@ -2267,6 +2347,7 @@ function ContOverview({ objects, allData, onExportAll }) {
             <tr>
               <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid #E5E7EB", color: "#6B7280" }}>Analysobjekt</th>
               {CONTINUITY_DIMENSIONS.map(d => <th key={d.key} title={d.label} style={{ padding: "6px 4px", borderBottom: "2px solid #E5E7EB", color: "#6B7280", fontSize: 16 }}>{d.icon}</th>)}
+              <th title="Värsta läge bland dimensioner · antal bedömda" style={{ padding: "6px 8px", borderBottom: "2px solid #E5E7EB", color: "#6B7280", fontSize: 10 }}>Värsta · Bedömt</th>
               <th style={{ padding: "6px 8px", borderBottom: "2px solid #E5E7EB", color: "#6B7280" }}>Ramverk</th>
               <th style={{ padding: "6px 8px", borderBottom: "2px solid #E5E7EB", color: "#6B7280" }}>Initiativ</th>
             </tr>
@@ -2274,12 +2355,22 @@ function ContOverview({ objects, allData, onExportAll }) {
           <tbody>
             {objects.map(obj => {
               const legalCount = LEGAL_FRAMEWORKS.filter(f => obj.legal && obj.legal[f.key] && obj.legal[f.key].relevant).length;
+              const dimLevels = CONTINUITY_DIMENSIONS.map(d => (obj.dimensions && obj.dimensions[d.key] && obj.dimensions[d.key].level) || null);
+              const assessed = dimLevels.filter(v => v).length;
+              const worst = dimLevels.reduce((acc, v) => (v && (!acc || SCALE_SEVERITY[v] > SCALE_SEVERITY[acc])) ? v : acc, null);
+              const worstSc = worst ? SCALE_BY_VALUE[worst] : null;
               return (
                 <tr key={obj.id}>
                   <td style={{ padding: "6px 8px", borderBottom: "1px solid #F3F4F6", fontWeight: 600, color: "#1B3A5C" }}>
                     {obj.namn || "Namnlöst"} <span style={{ color: "#9CA3AF", fontWeight: 400 }}>· {obj.typ}</span>
                   </td>
                   {CONTINUITY_DIMENSIONS.map(d => <React.Fragment key={d.key}>{cell((obj.dimensions && obj.dimensions[d.key] && obj.dimensions[d.key].level) || null)}</React.Fragment>)}
+                  <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #F3F4F6", whiteSpace: "nowrap" }}>
+                    {worstSc
+                      ? <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 9, fontWeight: 700, background: worstSc.color, color: "#fff" }}>{worstSc.short}</span>
+                      : <span style={{ fontSize: 10, color: "#9CA3AF" }}>—</span>}
+                    <span style={{ marginLeft: 6, fontSize: 10, color: "#6B7280", fontWeight: 600 }}>{assessed}/6</span>
+                  </td>
                   <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #F3F4F6", color: "#6B7280" }}>{legalCount}</td>
                   <td style={{ textAlign: "center", padding: "6px 8px", borderBottom: "1px solid #F3F4F6", color: "#6B7280" }}>{(obj.linkedInitiatives || []).length}</td>
                 </tr>
@@ -2365,6 +2456,115 @@ function ContOverview({ objects, allData, onExportAll }) {
   );
 }
 
+function ContDependencyGraph({ objects, allData }) {
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+  const [dims, setDims] = useState({ w: 900, h: 600 });
+  const [hovered, setHovered] = useState(null);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 100 && height > 100) setDims({ w: width, h: height });
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!svgRef.current || objects.length === 0) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+    const { w, h } = dims;
+    const aoNodes = objects.map(o => {
+      const levels = CONTINUITY_DIMENSIONS.map(d => (o.dimensions && o.dimensions[d.key] && o.dimensions[d.key].level) || null).filter(Boolean);
+      const worst = levels.reduce((acc, v) => (!acc || SCALE_SEVERITY[v] > SCALE_SEVERITY[acc]) ? v : acc, null);
+      return { id: "ao_" + o.id, type: "ao", label: o.namn || "Namnlöst", fullName: (o.namn || "Namnlöst") + " · " + o.typ, color: worst ? SCALE_BY_VALUE[worst].color : "#9CA3AF", r: 22 };
+    });
+    const linkedNrs = new Set();
+    objects.forEach(o => (o.linkedInitiatives || []).forEach(nr => linkedNrs.add(nr)));
+    const initNodes = [...linkedNrs].map(nr => {
+      const d = allData.find(x => x.nr === nr);
+      return { id: "init_" + nr, type: "init", nr, label: "#" + nr, fullName: d ? "Nr " + nr + " — " + d.n : "Nr " + nr, color: "#6B7280", r: 8 };
+    });
+    const supMap = {};
+    objects.forEach(o => (o.leverantorer || []).forEach(s => {
+      const k = (s || "").trim(); if (!k) return;
+      if (!supMap[k]) supMap[k] = { id: "sup_" + k, type: "supplier", label: k, fullName: "Leverantör: " + k, color: "#0E7490", count: 0 };
+      supMap[k].count++;
+    }));
+    const supplierNodes = Object.values(supMap).map(s => ({ ...s, r: Math.max(10, Math.min(24, 8 + s.count * 3)) }));
+    const nodes = [...aoNodes, ...initNodes, ...supplierNodes];
+    const links = [];
+    objects.forEach(o => {
+      const aoId = "ao_" + o.id;
+      (o.linkedInitiatives || []).forEach(nr => links.push({ source: aoId, target: "init_" + nr, kind: "contains" }));
+      (o.leverantorer || []).forEach(s => { const k = (s || "").trim(); if (k && supMap[k]) links.push({ source: aoId, target: supMap[k].id, kind: "provides" }); });
+    });
+    linkedNrs.forEach(nr => {
+      const d = allData.find(x => x.nr === nr);
+      if (!d || !d.dep) return;
+      d.dep.split(",").map(s => parseInt(s.trim())).filter(Boolean).forEach(t => {
+        if (linkedNrs.has(t) && nr < t) links.push({ source: "init_" + nr, target: "init_" + t, kind: "dep" });
+      });
+    });
+    const sim = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(d => d.kind === "contains" ? 55 : d.kind === "provides" ? 90 : 45).strength(0.5))
+      .force("charge", d3.forceManyBody().strength(-200))
+      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("collide", d3.forceCollide().radius(d => d.r + 4));
+    const link = svg.append("g").selectAll("line").data(links).enter().append("line")
+      .attr("stroke", d => d.kind === "contains" ? "#D1D5DB" : d.kind === "provides" ? "#0E7490" : "#F87171")
+      .attr("stroke-width", d => d.kind === "contains" ? 1.6 : 1.4)
+      .attr("stroke-dasharray", d => d.kind === "dep" ? "3,3" : null)
+      .attr("opacity", 0.65);
+    const node = svg.append("g").selectAll("g").data(nodes).enter().append("g")
+      .style("cursor", "pointer")
+      .on("mouseenter", (_, d) => setHovered(d))
+      .on("mouseleave", () => setHovered(null))
+      .call(d3.drag()
+        .on("start", (event, d) => { if (!event.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+        .on("end", (event, d) => { if (!event.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+    node.append("circle")
+      .attr("r", d => d.r)
+      .attr("fill", d => d.color)
+      .attr("stroke", d => d.type === "ao" ? "#1B3A5C" : "#fff")
+      .attr("stroke-width", d => d.type === "ao" ? 3 : 1.5);
+    node.append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", d => d.r + 11)
+      .attr("font-size", d => d.type === "ao" ? 11 : d.type === "supplier" ? 10 : 9)
+      .attr("font-weight", d => d.type === "ao" ? 700 : 500)
+      .attr("fill", "#1B3A5C")
+      .attr("pointer-events", "none")
+      .text(d => d.type === "init" ? d.label : (d.label.length > 22 ? d.label.substring(0, 22) + "…" : d.label));
+    sim.on("tick", () => {
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+    });
+    return () => sim.stop();
+  }, [objects, allData, dims]);
+  if (objects.length === 0) return <p style={{ fontSize: 13, color: "#9CA3AF", padding: 20 }}>Inga analysobjekt än.</p>;
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "calc(100vh - 260px)", minHeight: 500, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+      <svg ref={svgRef} width={dims.w} height={dims.h} style={{ width: "100%", height: "100%" }} />
+      <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(255,255,255,0.95)", padding: "8px 12px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 10, color: "#6B7280", display: "flex", gap: 14, flexWrap: "wrap", maxWidth: "70%" }}>
+        <span><span style={{ display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: "#22C55E", border: "2px solid #1B3A5C", verticalAlign: "middle", marginRight: 4 }} />Analysobjekt (färg = värsta läge)</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#6B7280", verticalAlign: "middle", marginRight: 4 }} />Kopplat initiativ</span>
+        <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", background: "#0E7490", verticalAlign: "middle", marginRight: 4 }} />Leverantör</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 2, background: "#D1D5DB", verticalAlign: "middle", marginRight: 4 }} />Ingår i</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 2, background: "#0E7490", verticalAlign: "middle", marginRight: 4 }} />Tillhandahålls av</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 0, borderTop: "2px dashed #F87171", verticalAlign: "middle", marginRight: 4 }} />Initiativ-beroende</span>
+      </div>
+      {hovered && (
+        <div style={{ position: "absolute", bottom: 12, left: 12, background: "rgba(27,58,92,0.95)", color: "#fff", padding: "8px 12px", borderRadius: 8, fontSize: 11, maxWidth: 480 }}>
+          {hovered.type === "ao" ? "🛡️ " : hovered.type === "supplier" ? "🏭 " : ""}{hovered.fullName || hovered.label}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ContinuityView({ allData }) {
   const [objects, setObjects] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -2391,11 +2591,14 @@ function ContinuityView({ allData }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
         <button onClick={() => setSubTab("objekt")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "objekt" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "objekt" ? "#1B3A5C" : "#fff", color: subTab === "objekt" ? "#fff" : "#6B7280" }}>Analysobjekt</button>
         <button onClick={() => setSubTab("oversikt")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "oversikt" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "oversikt" ? "#1B3A5C" : "#fff", color: subTab === "oversikt" ? "#fff" : "#6B7280" }}>Översikt</button>
+        <button onClick={() => setSubTab("graf")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "graf" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "graf" ? "#1B3A5C" : "#fff", color: subTab === "graf" ? "#fff" : "#6B7280" }}>Beroendegraf</button>
         <div style={{ flex: 1 }} />
         {subTab === "objekt" && <button onClick={addNew} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>+ Nytt analysobjekt</button>}
       </div>
       {subTab === "oversikt" ? (
         <ContOverview objects={objects} allData={allData} onExportAll={exportAll} />
+      ) : subTab === "graf" ? (
+        <ContDependencyGraph objects={objects} allData={allData} />
       ) : objects.length === 0 ? (
         <p style={{ fontSize: 13, color: "#9CA3AF", padding: "20px 0" }}>Inga analysobjekt än. Klicka "+ Nytt analysobjekt" för att börja en kontinuitetsanalys.</p>
       ) : (
@@ -2991,6 +3194,7 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState("default");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [overridesCache, setOverridesCache] = useState({});
+  const [analysisObjects, setAnalysisObjects] = useState([]);
   useEffect(() => {
     // Load all overrides from Supabase in one query
     getAllOverrides().then(cache => setOverridesCache(cache)).catch(() => {});
@@ -3002,6 +3206,14 @@ export default function Dashboard() {
         const row = payload.new;
         setOverridesCache(prev => ({ ...prev, [row.nr]: row.data }));
       }
+    });
+    return () => sub.unsubscribe();
+  }, []);
+  useEffect(() => {
+    getAnalysisObjects().then(list => setAnalysisObjects(Array.isArray(list) ? list : [])).catch(() => {});
+    const sub = subscribeToTable('analysis_objects', (payload) => {
+      const row = payload.new;
+      if (row && Array.isArray(row.data)) setAnalysisObjects(row.data);
     });
     return () => sub.unsubscribe();
   }, []);
@@ -3329,6 +3541,7 @@ export default function Dashboard() {
         {/* MODALS */}
         {detailItem && <DetailModal item={detailItem} onClose={() => setDetailItem(null)} allItems={DATA}
           overridesCache={overridesCache}
+          analysisObjects={analysisObjects}
           refreshOverrides={async () => {
             try {
               const cache = {};
