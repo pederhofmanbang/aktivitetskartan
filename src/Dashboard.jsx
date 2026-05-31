@@ -2456,6 +2456,115 @@ function ContOverview({ objects, allData, onExportAll }) {
   );
 }
 
+function ContDependencyGraph({ objects, allData }) {
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+  const [dims, setDims] = useState({ w: 900, h: 600 });
+  const [hovered, setHovered] = useState(null);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 100 && height > 100) setDims({ w: width, h: height });
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!svgRef.current || objects.length === 0) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+    const { w, h } = dims;
+    const aoNodes = objects.map(o => {
+      const levels = CONTINUITY_DIMENSIONS.map(d => (o.dimensions && o.dimensions[d.key] && o.dimensions[d.key].level) || null).filter(Boolean);
+      const worst = levels.reduce((acc, v) => (!acc || SCALE_SEVERITY[v] > SCALE_SEVERITY[acc]) ? v : acc, null);
+      return { id: "ao_" + o.id, type: "ao", label: o.namn || "Namnlöst", fullName: (o.namn || "Namnlöst") + " · " + o.typ, color: worst ? SCALE_BY_VALUE[worst].color : "#9CA3AF", r: 22 };
+    });
+    const linkedNrs = new Set();
+    objects.forEach(o => (o.linkedInitiatives || []).forEach(nr => linkedNrs.add(nr)));
+    const initNodes = [...linkedNrs].map(nr => {
+      const d = allData.find(x => x.nr === nr);
+      return { id: "init_" + nr, type: "init", nr, label: "#" + nr, fullName: d ? "Nr " + nr + " — " + d.n : "Nr " + nr, color: "#6B7280", r: 8 };
+    });
+    const supMap = {};
+    objects.forEach(o => (o.leverantorer || []).forEach(s => {
+      const k = (s || "").trim(); if (!k) return;
+      if (!supMap[k]) supMap[k] = { id: "sup_" + k, type: "supplier", label: k, fullName: "Leverantör: " + k, color: "#0E7490", count: 0 };
+      supMap[k].count++;
+    }));
+    const supplierNodes = Object.values(supMap).map(s => ({ ...s, r: Math.max(10, Math.min(24, 8 + s.count * 3)) }));
+    const nodes = [...aoNodes, ...initNodes, ...supplierNodes];
+    const links = [];
+    objects.forEach(o => {
+      const aoId = "ao_" + o.id;
+      (o.linkedInitiatives || []).forEach(nr => links.push({ source: aoId, target: "init_" + nr, kind: "contains" }));
+      (o.leverantorer || []).forEach(s => { const k = (s || "").trim(); if (k && supMap[k]) links.push({ source: aoId, target: supMap[k].id, kind: "provides" }); });
+    });
+    linkedNrs.forEach(nr => {
+      const d = allData.find(x => x.nr === nr);
+      if (!d || !d.dep) return;
+      d.dep.split(",").map(s => parseInt(s.trim())).filter(Boolean).forEach(t => {
+        if (linkedNrs.has(t) && nr < t) links.push({ source: "init_" + nr, target: "init_" + t, kind: "dep" });
+      });
+    });
+    const sim = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(d => d.kind === "contains" ? 55 : d.kind === "provides" ? 90 : 45).strength(0.5))
+      .force("charge", d3.forceManyBody().strength(-200))
+      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("collide", d3.forceCollide().radius(d => d.r + 4));
+    const link = svg.append("g").selectAll("line").data(links).enter().append("line")
+      .attr("stroke", d => d.kind === "contains" ? "#D1D5DB" : d.kind === "provides" ? "#0E7490" : "#F87171")
+      .attr("stroke-width", d => d.kind === "contains" ? 1.6 : 1.4)
+      .attr("stroke-dasharray", d => d.kind === "dep" ? "3,3" : null)
+      .attr("opacity", 0.65);
+    const node = svg.append("g").selectAll("g").data(nodes).enter().append("g")
+      .style("cursor", "pointer")
+      .on("mouseenter", (_, d) => setHovered(d))
+      .on("mouseleave", () => setHovered(null))
+      .call(d3.drag()
+        .on("start", (event, d) => { if (!event.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+        .on("end", (event, d) => { if (!event.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+    node.append("circle")
+      .attr("r", d => d.r)
+      .attr("fill", d => d.color)
+      .attr("stroke", d => d.type === "ao" ? "#1B3A5C" : "#fff")
+      .attr("stroke-width", d => d.type === "ao" ? 3 : 1.5);
+    node.append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", d => d.r + 11)
+      .attr("font-size", d => d.type === "ao" ? 11 : d.type === "supplier" ? 10 : 9)
+      .attr("font-weight", d => d.type === "ao" ? 700 : 500)
+      .attr("fill", "#1B3A5C")
+      .attr("pointer-events", "none")
+      .text(d => d.type === "init" ? d.label : (d.label.length > 22 ? d.label.substring(0, 22) + "…" : d.label));
+    sim.on("tick", () => {
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+    });
+    return () => sim.stop();
+  }, [objects, allData, dims]);
+  if (objects.length === 0) return <p style={{ fontSize: 13, color: "#9CA3AF", padding: 20 }}>Inga analysobjekt än.</p>;
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "calc(100vh - 260px)", minHeight: 500, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+      <svg ref={svgRef} width={dims.w} height={dims.h} style={{ width: "100%", height: "100%" }} />
+      <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(255,255,255,0.95)", padding: "8px 12px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 10, color: "#6B7280", display: "flex", gap: 14, flexWrap: "wrap", maxWidth: "70%" }}>
+        <span><span style={{ display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: "#22C55E", border: "2px solid #1B3A5C", verticalAlign: "middle", marginRight: 4 }} />Analysobjekt (färg = värsta läge)</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#6B7280", verticalAlign: "middle", marginRight: 4 }} />Kopplat initiativ</span>
+        <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", background: "#0E7490", verticalAlign: "middle", marginRight: 4 }} />Leverantör</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 2, background: "#D1D5DB", verticalAlign: "middle", marginRight: 4 }} />Ingår i</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 2, background: "#0E7490", verticalAlign: "middle", marginRight: 4 }} />Tillhandahålls av</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 0, borderTop: "2px dashed #F87171", verticalAlign: "middle", marginRight: 4 }} />Initiativ-beroende</span>
+      </div>
+      {hovered && (
+        <div style={{ position: "absolute", bottom: 12, left: 12, background: "rgba(27,58,92,0.95)", color: "#fff", padding: "8px 12px", borderRadius: 8, fontSize: 11, maxWidth: 480 }}>
+          {hovered.type === "ao" ? "🛡️ " : hovered.type === "supplier" ? "🏭 " : ""}{hovered.fullName || hovered.label}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ContinuityView({ allData }) {
   const [objects, setObjects] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -2482,11 +2591,14 @@ function ContinuityView({ allData }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
         <button onClick={() => setSubTab("objekt")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "objekt" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "objekt" ? "#1B3A5C" : "#fff", color: subTab === "objekt" ? "#fff" : "#6B7280" }}>Analysobjekt</button>
         <button onClick={() => setSubTab("oversikt")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "oversikt" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "oversikt" ? "#1B3A5C" : "#fff", color: subTab === "oversikt" ? "#fff" : "#6B7280" }}>Översikt</button>
+        <button onClick={() => setSubTab("graf")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "graf" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "graf" ? "#1B3A5C" : "#fff", color: subTab === "graf" ? "#fff" : "#6B7280" }}>Beroendegraf</button>
         <div style={{ flex: 1 }} />
         {subTab === "objekt" && <button onClick={addNew} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>+ Nytt analysobjekt</button>}
       </div>
       {subTab === "oversikt" ? (
         <ContOverview objects={objects} allData={allData} onExportAll={exportAll} />
+      ) : subTab === "graf" ? (
+        <ContDependencyGraph objects={objects} allData={allData} />
       ) : objects.length === 0 ? (
         <p style={{ fontSize: 13, color: "#9CA3AF", padding: "20px 0" }}>Inga analysobjekt än. Klicka "+ Nytt analysobjekt" för att börja en kontinuitetsanalys.</p>
       ) : (
