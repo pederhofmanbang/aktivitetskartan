@@ -116,7 +116,7 @@ function ScoreBar({ label, score, comment, color = "#1B3A5C" }) {
   );
 }
 /* ─────────── DETAIL MODAL ─────────── */
-function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides, analysisObjects = [] }) {
+function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides, analysisObjects = [], onCreateContinuityAnalysis }) {
   const [override, setOverride] = useState(null);
   const [showMeta, setShowMeta] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -177,14 +177,21 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
           </div>
         </div>
         <div style={{ padding: "20px 28px 28px", maxHeight: expanded ? "none" : "60vh", overflowY: "auto", flex: expanded ? 1 : "none" }}>
-          {linkedAO.length > 0 && (
-            <div style={{ marginBottom: 12, padding: "8px 12px", background: "#ECFEFF", border: "1px solid #A5F3FC", borderRadius: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#0E7490", textTransform: "uppercase", letterSpacing: "0.04em" }}>🛡️ Ingår i analysobjekt</span>
-              {linkedAO.map(o => (
-                <span key={o.id} title={o.typ} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 12, background: "#fff", border: "1px solid #A5F3FC", color: "#0E7490", fontWeight: 600 }}>{o.namn || "Namnlöst"}</span>
-              ))}
-            </div>
-          )}
+          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#ECFEFF", border: "1px solid #A5F3FC", borderRadius: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#0E7490", textTransform: "uppercase", letterSpacing: "0.04em" }}>🛡️ Kontinuitetsanalys</span>
+            {linkedAO.length > 0
+              ? linkedAO.map(o => (
+                  <span key={o.id} title={o.typ} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 12, background: "#fff", border: "1px solid #A5F3FC", color: "#0E7490", fontWeight: 600 }}>{o.namn || "Namnlöst"}</span>
+                ))
+              : <span style={{ fontSize: 11, color: "#0E7490", fontStyle: "italic" }}>Ingen analys ännu</span>}
+            <div style={{ flex: 1 }} />
+            {onCreateContinuityAnalysis && (
+              <button onClick={(e) => { e.stopPropagation(); onCreateContinuityAnalysis(item); }}
+                style={{ padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "1px solid #0E7490", background: "#0E7490", color: "#fff" }}>
+                + Skapa{linkedAO.length > 0 ? " ny" : ""}
+              </button>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             <button onClick={() => setShowEdit(!showEdit)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 10.5, fontWeight: 600, cursor: "pointer", border: showEdit ? "1px solid #4285F4" : "1px solid #E5E7EB", background: showEdit ? "#E8F0FE" : "#fff", color: showEdit ? "#1A56DB" : "#6B7280", display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{fontSize:11}}>✏️</span> {showEdit ? "Stäng redigering" : "Redigera"}
@@ -2570,11 +2577,30 @@ function ContinuityView({ allData }) {
   const [loaded, setLoaded] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [subTab, setSubTab] = useState("objekt");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
   useEffect(() => {
     storageGet("analysis_objects").then(data => { setObjects(Array.isArray(data) ? data : []); setLoaded(true); });
+    const sub = subscribeToTable('analysis_objects', (payload) => {
+      const row = payload.new;
+      if (row && Array.isArray(row.data)) setObjects(row.data);
+    });
+    return () => sub.unsubscribe();
   }, []);
   const save = async (list) => { setObjects(list); await storageSet("analysis_objects", list); };
   const addNew = () => { const o = newAnalysisObject(); const next = [...objects, o]; save(next); setEditingId(o.id); setSubTab("objekt"); };
+  const addFromInitiative = (init) => {
+    const o = newAnalysisObject();
+    o.namn = init.n;
+    o.typ = "Dataplattform";
+    o.linkedInitiatives = [init.nr];
+    const next = [...objects, o]; save(next); setEditingId(o.id); setSubTab("objekt");
+    setPickerOpen(false); setPickerQuery("");
+  };
+  const pickerHits = useMemo(() => {
+    const q = pickerQuery.trim().toLowerCase();
+    return allData.filter(d => !q || d.n.toLowerCase().includes(q) || String(d.nr).includes(q)).slice(0, 40);
+  }, [pickerQuery, allData]);
   const patch = (id, p) => save(objects.map(o => o.id === id ? { ...o, ...p } : o));
   const remove = (id) => { if (confirm("Ta bort detta analysobjekt?")) save(objects.filter(o => o.id !== id)); };
   const exportAll = () => {
@@ -2593,8 +2619,28 @@ function ContinuityView({ allData }) {
         <button onClick={() => setSubTab("oversikt")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "oversikt" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "oversikt" ? "#1B3A5C" : "#fff", color: subTab === "oversikt" ? "#fff" : "#6B7280" }}>Översikt</button>
         <button onClick={() => setSubTab("graf")} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: subTab === "graf" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: subTab === "graf" ? "#1B3A5C" : "#fff", color: subTab === "graf" ? "#fff" : "#6B7280" }}>Beroendegraf</button>
         <div style={{ flex: 1 }} />
-        {subTab === "objekt" && <button onClick={addNew} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>+ Nytt analysobjekt</button>}
+        {subTab === "objekt" && (
+          <>
+            <button onClick={() => { setPickerOpen(!pickerOpen); setPickerQuery(""); }} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid #BFDBFE", background: pickerOpen ? "#DBEAFE" : "#F5F9FF", color: "#1A56DB" }}>+ Från initiativ</button>
+            <button onClick={addNew} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid #4285F4", background: "#E8F0FE", color: "#1A56DB" }}>+ Tomt analysobjekt</button>
+          </>
+        )}
       </div>
+      {subTab === "objekt" && pickerOpen && (
+        <div style={{ border: "1px solid #BFDBFE", borderRadius: 10, padding: 12, background: "#F5F9FF", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#1B3A5C", fontWeight: 700, marginBottom: 6 }}>Skapa kontinuitetsanalys utifrån ett befintligt initiativ</div>
+          <p style={{ fontSize: 11, color: "#6B7280", margin: "0 0 8px" }}>Namn och koppling förifylls — du kan ändra typ och allt annat efteråt.</p>
+          <input value={pickerQuery} onChange={e => setPickerQuery(e.target.value)} autoFocus placeholder="Sök initiativ på namn eller nummer..." style={contInput} />
+          <div style={{ maxHeight: 260, overflowY: "auto", marginTop: 8, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 6 }}>
+            {pickerHits.length === 0 && <p style={{ padding: 10, fontSize: 11, color: "#9CA3AF", margin: 0 }}>Inga träffar.</p>}
+            {pickerHits.map(d => (
+              <button key={d.nr} onClick={() => addFromInitiative(d)} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", border: "none", borderBottom: "1px solid #F3F4F6", background: "transparent", cursor: "pointer", fontSize: 12, color: "#1B3A5C" }}>
+                <b>Nr {d.nr}</b> — {d.n} <span style={{ color: "#9CA3AF", fontSize: 11 }}>· {d.typ}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {subTab === "oversikt" ? (
         <ContOverview objects={objects} allData={allData} onExportAll={exportAll} />
       ) : subTab === "graf" ? (
@@ -3542,6 +3588,15 @@ export default function Dashboard() {
         {detailItem && <DetailModal item={detailItem} onClose={() => setDetailItem(null)} allItems={DATA}
           overridesCache={overridesCache}
           analysisObjects={analysisObjects}
+          onCreateContinuityAnalysis={async (item) => {
+            const o = newAnalysisObject();
+            o.namn = item.n; o.typ = "Dataplattform"; o.linkedInitiatives = [item.nr];
+            const next = [...analysisObjects, o];
+            setAnalysisObjects(next);
+            await saveAnalysisObjects(next);
+            setDetailItem(null);
+            setViewMode("continuity");
+          }}
           refreshOverrides={async () => {
             try {
               const cache = {};
