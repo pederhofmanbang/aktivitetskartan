@@ -462,6 +462,25 @@ const LEGAL_FRAMEWORKS = [
   { key: "tech_sovereignty", namn: "Tech Sovereignty Package (framväxande)", varfor: "Kan påverka långsiktiga vägval och kontroll över strategisk digital infrastruktur." },
 ];
 const ANALYSIS_OBJECT_TYPES = ["Systemmiljö", "Dataplattform", "Leverantörsberoende", "Informationskedja", "Försörjningskedja (verksamhetsområde)"];
+// Kompetenskategorier ur Metodstödet, rad 84–91 — för fältet "Deltagande funktioner".
+const KOMPETENSER = [
+  "Strategisk IT-arkitektur, integrationer och digital infrastruktur",
+  "Informationssäkerhet, cybersäkerhet och riskhantering",
+  "Upphandling, leverantörsstyrning och avtalsförvaltning",
+  "Juridik, dataskydd och informationshantering",
+  "Ekonomi, kostnadsanalys och nyttobedömning",
+  "Representanter från berörda verksamheter och informationsägare",
+  "Beredskap, kontinuitetshantering och krisledning",
+];
+// Ansvarsområden ur Metodstödet, rad 56 — vem som ansvarar för respektive perspektiv.
+const ANSVAR_OMRADEN = [
+  { key: "kontinuitet", label: "Kontinuitetsperspektivet" },
+  { key: "juridik", label: "Rättslig bedömning (enskild lag & på totalen)" },
+  { key: "ekonomi", label: "Ekonomisk analys" },
+  { key: "cybersakerhet", label: "Cybersäkerhetsunderlag" },
+  { key: "arkitektur", label: "Arkitekturöversikt" },
+  { key: "sammanvagning", label: "Sammanvägning av resultat" },
+];
 // Korta kolumnetiketter för rättsliga ramverk i översiktsmatrisen.
 const LEGAL_KORT = { hsl: "HSL", psl: "PSL", pdl: "PDL", interop_se: "IntOp", gdpr: "GDPR", ehds: "EHDS", nis2: "NIS2", ai_act: "AI Act", cra: "CRA", data_act: "Data", dga: "DGA", open_data: "Öppna", iea: "IEA", digital_networks: "DigNet", tech_sovereignty: "TechSov" };
 // Metodstödets fyra steg (för accordion-rubriker i analysvyn).
@@ -2017,7 +2036,9 @@ function CandidatesView() {
 function newAnalysisObject() {
   return {
     id: Date.now(), namn: "", typ: ANALYSIS_OBJECT_TYPES[0], datum: new Date().toISOString().slice(0, 10),
-    beslutssituation: "", beroda: "", ambitionsniva: "", linkedInitiatives: [], underlag: "",
+    beslutssituation: "", avgransningar: "", analysfragor: "", beroda: "", ambitionsniva: "",
+    bestallare: "", samordning: "", deltagare: [], ansvar: {},
+    linkedInitiatives: [], underlag: "",
     leverantorer: [], legal: {}, dimensions: {}, riskbedomning: "", slutsatser: "", atgarder: "",
   };
 }
@@ -2030,8 +2051,18 @@ function buildContinuityMarkdown(obj, allData) {
   L.push("");
   L.push("## 1. Avgränsning & underlag");
   L.push("**Beslutssituation:** " + (obj.beslutssituation || "—"));
+  L.push("**Avgränsningar:** " + (obj.avgransningar || "—"));
+  L.push("**Analysfrågor:** " + (obj.analysfragor || "—"));
   L.push("**Berörda verksamheter & informationsflöden:** " + (obj.beroda || "—"));
   L.push("**Ambitionsnivå:** " + (obj.ambitionsniva || "—"));
+  L.push("**Beställare:** " + (obj.bestallare || "—") + "  ");
+  L.push("**Samordningsansvarig:** " + (obj.samordning || "—"));
+  if (obj.deltagare && obj.deltagare.length) L.push("**Deltagande funktioner:** " + obj.deltagare.join("; "));
+  if (obj.ansvar && Object.keys(obj.ansvar).some(k => obj.ansvar[k])) {
+    L.push("");
+    L.push("**Ansvarsfördelning:**");
+    ANSVAR_OMRADEN.forEach(a => { if (obj.ansvar[a.key]) L.push("- " + a.label + ": " + obj.ansvar[a.key]); });
+  }
   if (obj.linkedInitiatives && obj.linkedInitiatives.length) {
     const names = obj.linkedInitiatives.map(nr => { const d = allData.find(x => x.nr === nr); return d ? "Nr " + nr + " — " + d.n : "Nr " + nr; });
     L.push("**Kopplade initiativ:** " + names.join("; "));
@@ -2102,8 +2133,13 @@ function buildContinuityObjectHtml(obj, allData) {
     "<div class='meta'><b>Typ:</b> " + e(obj.typ) + " &middot; <b>Datum:</b> " + e(obj.datum) + "</div>" +
     "<h2>1. Avgränsning & underlag</h2>" +
     "<p><b>Beslutssituation:</b> " + (e(obj.beslutssituation) || "—") + "</p>" +
+    "<p><b>Avgränsningar:</b> " + (e(obj.avgransningar) || "—") + "</p>" +
+    "<p><b>Analysfrågor:</b> " + (e(obj.analysfragor) || "—") + "</p>" +
     "<p><b>Berörda verksamheter & informationsflöden:</b> " + (e(obj.beroda) || "—") + "</p>" +
     "<p><b>Ambitionsnivå:</b> " + (e(obj.ambitionsniva) || "—") + "</p>" +
+    "<p><b>Beställare:</b> " + (e(obj.bestallare) || "—") + " &middot; <b>Samordningsansvarig:</b> " + (e(obj.samordning) || "—") + "</p>" +
+    ((obj.deltagare && obj.deltagare.length) ? "<p><b>Deltagande funktioner:</b> " + obj.deltagare.map(e).join("; ") + "</p>" : "") +
+    ((obj.ansvar && Object.keys(obj.ansvar).some(k => obj.ansvar[k])) ? "<p class='label'>Ansvarsfördelning</p><ul>" + ANSVAR_OMRADEN.filter(a => obj.ansvar[a.key]).map(a => "<li><b>" + e(a.label) + ":</b> " + e(obj.ansvar[a.key]) + "</li>").join("") + "</ul>" : "") +
     (initiativeItems ? "<p class='label'>Kopplade initiativ</p><ul>" + initiativeItems + "</ul>" : "") +
     "<p><b>Underlag:</b> " + (e(obj.underlag) || "—") + "</p>" +
     ((obj.leverantorer && obj.leverantorer.length) ? "<p><b>Centrala leverantörer / plattformar:</b> " + obj.leverantorer.map(e).join(", ") + "</p>" : "") +
@@ -2245,10 +2281,51 @@ function ContObjectEditor({ obj, onPatch, allData }) {
           <label style={contLabel}>Beslutssituation som analysen ska stödja</label>
           <textarea value={obj.beslutssituation} onChange={e => onPatch({ beslutssituation: e.target.value })} rows={2} style={contInput}
             placeholder="T.ex. strategiskt vägval, belysa sårbarheter, förbereda upphandling, arkitekturstyrning..." />
+          <label style={contLabel}>Avgränsningar (vad analysen inte omfattar)</label>
+          <textarea value={obj.avgransningar || ""} onChange={e => onPatch({ avgransningar: e.target.value })} rows={2} style={contInput}
+            placeholder="System, processer eller perspektiv som ligger utanför denna analys" />
+          <label style={contLabel}>Analysfrågor som ska besvaras</label>
+          <textarea value={obj.analysfragor || ""} onChange={e => onPatch({ analysfragor: e.target.value })} rows={2} style={contInput}
+            placeholder="De konkreta frågor regionen vill ha svar på i denna analys" />
           <label style={contLabel}>Berörda verksamheter & kritiska informationsflöden</label>
           <textarea value={obj.beroda} onChange={e => onPatch({ beroda: e.target.value })} rows={2} style={contInput} />
           <label style={contLabel}>Ambitionsnivå</label>
           <input value={obj.ambitionsniva} onChange={e => onPatch({ ambitionsniva: e.target.value })} style={contInput} placeholder="Avgränsad / fördjupad / bred analys" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <label style={contLabel}>Beställare</label>
+              <input value={obj.bestallare || ""} onChange={e => onPatch({ bestallare: e.target.value })} style={contInput} placeholder="Namn / roll" />
+            </div>
+            <div>
+              <label style={contLabel}>Samordningsansvarig</label>
+              <input value={obj.samordning || ""} onChange={e => onPatch({ samordning: e.target.value })} style={contInput} placeholder="Namn / roll" />
+            </div>
+          </div>
+          <label style={contLabel}>Deltagande funktioner / kompetenser</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {KOMPETENSER.map(k => {
+              const on = (obj.deltagare || []).includes(k);
+              return (
+                <label key={k} style={{ display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer", fontSize: 11, color: "#374151" }}>
+                  <input type="checkbox" checked={on} onChange={() => {
+                    const cur = obj.deltagare || [];
+                    onPatch({ deltagare: on ? cur.filter(x => x !== k) : [...cur, k] });
+                  }} style={{ marginTop: 2 }} />
+                  <span>{k}</span>
+                </label>
+              );
+            })}
+          </div>
+          <label style={{ ...contLabel, marginTop: 12, fontSize: 11, color: "#1B3A5C", fontWeight: 700 }}>Ansvarsfördelning per perspektiv</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {ANSVAR_OMRADEN.map(a => (
+              <div key={a.key}>
+                <label style={{ fontSize: 10, color: "#6B7280", display: "block", marginBottom: 2 }}>{a.label}</label>
+                <input value={(obj.ansvar && obj.ansvar[a.key]) || ""} onChange={e => onPatch({ ansvar: { ...(obj.ansvar || {}), [a.key]: e.target.value } })}
+                  style={contInput} placeholder="Namn / roll" />
+              </div>
+            ))}
+          </div>
           <label style={contLabel}>Kopplade initiativ (från kartläggningen)</label>
           <ContInitiativePicker selected={obj.linkedInitiatives || []} allData={allData} onToggle={toggleInit} />
           <label style={contLabel}>Insamlat underlag (konsekvensanalyser, RSA, kontinuitetsplaner, avtal, arkitektur...)</label>
