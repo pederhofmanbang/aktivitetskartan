@@ -1381,6 +1381,8 @@ function ConnectionPicker({ itemNr, starred, override, setOverride, autoSave, ov
 }
 
 /* ─────────── PRIORITIZED VIEW (Prioriterade) ─────────── */
+// Prio-specifika fält som inte renderas på det vanliga kortet — används av "Alla med Prio-fält ifyllda"-läget.
+const PRIO_ONLY_FIELDS = ["status", "behov", "behovsniva", "overlap", "anvtyp", "nyttjande", "forutsattningar", "outnyttjat", "agarskap", "styrning", "ekonomi", "strategi", "ovrigt"];
 const PRIO_SECTIONS = [
   { title: "Syfte & behov", nr: 1, fields: [
     { key: "fok", label: "Hälsodatafokus", hint: "Vilken typ av hälsodata hanteras? Vilka datatyper och dataflöden omfattas?" },
@@ -1451,10 +1453,17 @@ function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
   );
 }
 function PrioritizedView({ data, overridesCache, refreshOverrides }) {
+  const [mode, setMode] = useState("starred"); // "starred" | "filled"
   const starred = useMemo(() => data.filter(i => {
     const ov = overridesCache[i.nr];
-    return ov && ov.arbetaVidere;
-  }), [data, overridesCache]);
+    if (mode === "starred") return ov && ov.arbetaVidere;
+    // "filled" — alla med minst ett Prio-only-fält ifyllt
+    if (!ov || !ov.fields) return false;
+    return PRIO_ONLY_FIELDS.some(k => {
+      const v = ov.fields[k];
+      return v != null && String(v).trim() !== "";
+    });
+  }), [data, overridesCache, mode]);
   const [overrides, setOverrides] = useState({});
   const [selectedExport, setSelectedExport] = useState(new Set());
   useEffect(() => {
@@ -1590,7 +1599,11 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
       <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f1f2e", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
-          <p style={{ fontSize: 13, color: "#3a4a5a", margin: 0 }}>{starred.length} stjärnmarkerade initiativ — klicka på fältvärden för att redigera direkt</p>
+          <p style={{ fontSize: 13, color: "#3a4a5a", margin: "0 0 8px" }}>{starred.length} {mode === "starred" ? "stjärnmarkerade initiativ" : "initiativ med Prio-fält ifyllda"} — klicka på fältvärden för att redigera direkt</p>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setMode("starred")} style={{ padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: mode === "starred" ? "1px solid #F59E0B" : "1px solid #E5E7EB", background: mode === "starred" ? "#FFFBEB" : "#fff", color: mode === "starred" ? "#B45309" : "#6B7280" }}>⭐ Bara stjärnmärkta</button>
+            <button onClick={() => setMode("filled")} style={{ padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: mode === "filled" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: mode === "filled" ? "#E8F0FE" : "#fff", color: mode === "filled" ? "#1A56DB" : "#6B7280" }}>📝 Alla med Prio-fält ifyllda</button>
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button onClick={selectAllForExport} style={{ fontSize: 12, fontWeight: 600, color: "#1B3A5C", background: "#fff", border: "1.5px solid #1B3A5C", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}>
@@ -3632,9 +3645,9 @@ export default function Dashboard() {
               {viewMode === "guide" ? (
                 <GuideView />
               ) : viewMode === "prioritized" ? (
-                <PrioritizedView data={DATA} overridesCache={overridesCache} refreshOverrides={async () => { const cache = await getAllOverrides(); setOverridesCache(cache); }} />
+                <PrioritizedView data={sorted} overridesCache={overridesCache} refreshOverrides={async () => { const cache = await getAllOverrides(); setOverridesCache(cache); }} />
               ) : viewMode === "prionetwork" ? (
-                <PrioNetworkView data={DATA} overridesCache={overridesCache} onClickItem={item => setDetailItem(item)} />
+                <PrioNetworkView data={sorted} overridesCache={overridesCache} onClickItem={item => setDetailItem(item)} />
               ) : viewMode === "continuity" ? (
                 <ContinuityView allData={DATA} />
               ) : viewMode === "candidates" ? (
