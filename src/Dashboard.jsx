@@ -1452,8 +1452,9 @@ function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
     </div>
   );
 }
-function PrioritizedView({ data, overridesCache, refreshOverrides }) {
+function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }) {
   const [mode, setMode] = useState("starred"); // "starred" | "filled"
+  const [layout, setLayout] = useState("list"); // "list" | "grid"
   const starred = useMemo(() => data.filter(i => {
     const ov = overridesCache[i.nr];
     if (mode === "starred") return ov && ov.arbetaVidere;
@@ -1600,9 +1601,12 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f1f2e", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Prioriterade initiativ</h2>
           <p style={{ fontSize: 13, color: "#3a4a5a", margin: "0 0 8px" }}>{starred.length} {mode === "starred" ? "stjärnmarkerade initiativ" : "initiativ med Prio-fält ifyllda"} — klicka på fältvärden för att redigera direkt</p>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={() => setMode("starred")} style={{ padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: mode === "starred" ? "1px solid #F59E0B" : "1px solid #E5E7EB", background: mode === "starred" ? "#FFFBEB" : "#fff", color: mode === "starred" ? "#B45309" : "#6B7280" }}>⭐ Bara stjärnmärkta</button>
             <button onClick={() => setMode("filled")} style={{ padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: mode === "filled" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: mode === "filled" ? "#E8F0FE" : "#fff", color: mode === "filled" ? "#1A56DB" : "#6B7280" }}>📝 Alla med Prio-fält ifyllda</button>
+            <span style={{ width: 1, background: "#E5E7EB", margin: "0 4px" }} />
+            <button onClick={() => setLayout("list")} title="Lista (fulla kort)" style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: layout === "list" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: layout === "list" ? "#1B3A5C" : "#fff", color: layout === "list" ? "#fff" : "#6B7280" }}>☰ Lista</button>
+            <button onClick={() => setLayout("grid")} title="Rutnät (kompakt)" style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: layout === "grid" ? "1px solid #1B3A5C" : "1px solid #E5E7EB", background: layout === "grid" ? "#1B3A5C" : "#fff", color: layout === "grid" ? "#fff" : "#6B7280" }}>▦ Rutnät</button>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1619,7 +1623,31 @@ function PrioritizedView({ data, overridesCache, refreshOverrides }) {
           </>)}
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {layout === "grid" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+          {starred.map(item => {
+            const ov = overrides[item.nr] || {};
+            const col = DEL_COLORS[item.del] || {};
+            const f = ov.fields || {};
+            return (
+              <div key={item.nr} onClick={() => onClickItem && onClickItem(item)}
+                style={{ background: "#fff", border: "1px solid " + (col.border || "#E5E7EB"), borderLeft: "4px solid " + (col.border || "#E5E7EB"), borderRadius: 8, padding: 10, cursor: "pointer", display: "flex", flexDirection: "column", gap: 5, minHeight: 130, transition: "transform 0.1s, box-shadow 0.1s" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.08)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: col.bg || "#F3F4F6", color: col.text || "#374151" }}>{item.sub}</span>
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Nr {item.nr}</span>
+                  {ov.arbetaVidere && <span style={{ marginLeft: "auto", fontSize: 11 }} title="Stjärnmärkt">⭐</span>}
+                </div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: "#1B3A5C", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{item.n}</div>
+                {f.status && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b style={{ color: "#374151" }}>Status:</b> {f.status}</div>}
+                {f.typ && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}><b style={{ color: "#374151" }}>Typ:</b> {f.typ}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ display: layout === "list" ? "flex" : "none", flexDirection: "column", gap: 20 }}>
         {starred.map(item => {
           const col = DEL_COLORS[item.del];
           const ov = overrides[item.nr];
@@ -3472,6 +3500,7 @@ export default function Dashboard() {
   }, []);
   const [viewMode, setViewMode] = useState("cards");
   const [ursprungFilter, setUrsprungFilter] = useState({ ursprunglig: false, ovriga: false });
+  const [quickFilter, setQuickFilter] = useState({ kvalreg: false });
   const [deepdiveItem, setDeepDiveItem] = useState(null);
   const allSubs = useMemo(() => { const map = {}; DATA.forEach(i => { map[i.sub] = (map[i.sub] || 0) + 1; }); return Object.entries(map).sort((a, b) => { const order = ["A1","A2","A3","B","C1","C2","C3","D"]; return order.indexOf(a[0]) - order.indexOf(b[0]); }); }, []);
   const allTagsByCategory = useMemo(() => { const result = {}; TAG_CATS.forEach(cat => { const map = {}; DATA.forEach(i => getTagValues(i, cat).forEach(v => { map[v] = (map[v] || 0) + 1; })); result[cat] = Object.entries(map).sort((a, b) => b[1] - a[1]); }); return result; }, []);
@@ -3490,9 +3519,10 @@ export default function Dashboard() {
       if (ursprungFilter.ursprunglig) items = items.filter(i => { const tv = getTagValues(i, "Användning"); return tv.includes("ursprunglig"); });
       if (ursprungFilter.ovriga) items = items.filter(i => { const tv = getTagValues(i, "Användning"); return !tv.includes("ursprunglig"); });
     }
+    if (quickFilter.kvalreg) items = items.filter(i => getTagValues(i, "Verksamhetstyp").includes("kvalitetsregister"));
     if (showOnlySelected) items = items.filter(i => selected.has(i.nr));
     return items;
-  }, [search, filters, showOnlySelected, selected, ursprungFilter, overridesCache]);
+  }, [search, filters, showOnlySelected, selected, ursprungFilter, quickFilter, overridesCache]);
   const sorted = useMemo(() => {
     let items = [...filtered];
     if (sortBy === "default") return items.sort((a, b) => a.nr - b.nr);
@@ -3503,10 +3533,10 @@ export default function Dashboard() {
     return items;
   }, [filtered, sortBy]);
   const stats = useMemo(() => { const msek = filtered.reduce((s, i) => s + parseMSEK(i.fin), 0); return { count: filtered.length, msek }; }, [filtered]);
-  const activeFilterCount = useMemo(() => { let c = filters.del.length + filters.sub.length + filters.fk.length + filters.maturity.length + filters.jurisdictions.length + (filters.arbetaVidere ? 1 : 0) + (filters.qaApproved ? 1 : 0); Object.values(filters.tags).forEach(v => { c += v.length; }); if (search.trim()) c++; if (showOnlySelected) c++; if (ursprungFilter.ursprunglig !== ursprungFilter.ovriga) c++; return c; }, [filters, search, showOnlySelected, ursprungFilter]);
+  const activeFilterCount = useMemo(() => { let c = filters.del.length + filters.sub.length + filters.fk.length + filters.maturity.length + filters.jurisdictions.length + (filters.arbetaVidere ? 1 : 0) + (filters.qaApproved ? 1 : 0); Object.values(filters.tags).forEach(v => { c += v.length; }); if (search.trim()) c++; if (showOnlySelected) c++; if (ursprungFilter.ursprunglig !== ursprungFilter.ovriga) c++; if (quickFilter.kvalreg) c++; return c; }, [filters, search, showOnlySelected, ursprungFilter, quickFilter]);
   const toggleFilter = useCallback((key, value) => { setFilters(prev => { const arr = prev[key]; const next = arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]; return { ...prev, [key]: next }; }); }, []);
   const toggleTagFilter = useCallback((cat, value) => { setFilters(prev => { const current = prev.tags[cat] || []; const next = current.includes(value) ? current.filter(v => v !== value) : [...current, value]; return { ...prev, tags: { ...prev.tags, [cat]: next } }; }); }, []);
-  const clearFilters = useCallback(() => { setFilters({ del: [], sub: [], fk: [], maturity: [], jurisdictions: [], arbetaVidere: false, qaApproved: false, tags: {} }); setSearch(""); setShowOnlySelected(false); setUrsprungFilter({ ursprunglig: false, ovriga: false }); }, []);
+  const clearFilters = useCallback(() => { setFilters({ del: [], sub: [], fk: [], maturity: [], jurisdictions: [], arbetaVidere: false, qaApproved: false, tags: {} }); setSearch(""); setShowOnlySelected(false); setUrsprungFilter({ ursprunglig: false, ovriga: false }); setQuickFilter({ kvalreg: false }); }, []);
   const toggleSelect = useCallback((nr) => { setSelected(prev => { const next = new Set(prev); if (next.has(nr)) next.delete(nr); else next.add(nr); return next; }); }, []);
   const activeChips = useMemo(() => {
     const chips = [];
@@ -3520,9 +3550,10 @@ export default function Dashboard() {
     if (filters.qaApproved) chips.push({ label: "QA-godkänd", clear: () => setFilters(prev => ({ ...prev, qaApproved: false })) });
     if (ursprungFilter.ursprunglig && !ursprungFilter.ovriga) chips.push({ label: "Ursprungliga 28", clear: () => setUrsprungFilter({ ursprunglig: false, ovriga: false }) });
     if (ursprungFilter.ovriga && !ursprungFilter.ursprunglig) chips.push({ label: "Övriga (ej ursprungliga)", clear: () => setUrsprungFilter({ ursprunglig: false, ovriga: false }) });
+    if (quickFilter.kvalreg) chips.push({ label: "📋 Kvalitetsregister", clear: () => setQuickFilter({ kvalreg: false }) });
     if (showOnlySelected) chips.push({ label: `Visar ${selected.size} valda`, clear: () => setShowOnlySelected(false) });
     return chips;
-  }, [filters, showOnlySelected, selected.size, toggleFilter, toggleTagFilter, ursprungFilter]);
+  }, [filters, showOnlySelected, selected.size, toggleFilter, toggleTagFilter, ursprungFilter, quickFilter]);
   return (
     <>
       <style>{`
@@ -3585,6 +3616,11 @@ export default function Dashboard() {
                 <FilterCheck label="Övriga" checked={ursprungFilter.ovriga} onChange={() => setUrsprungFilter(prev => ({ ...prev, ovriga: !prev.ovriga }))} count={DATA.filter(i => !getTagValues(i, "Användning").includes("ursprunglig")).length} color="#6B7280" />
               </div>
               <div style={{ height: 1, background: "#E5E7EB", margin: "4px 12px 8px" }} />
+              <div style={{ marginBottom: 8, padding: "8px 12px" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1B3A5C", marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Snabbfilter</div>
+                <FilterCheck label="📋 Kvalitetsregister" checked={quickFilter.kvalreg} onChange={() => setQuickFilter(prev => ({ ...prev, kvalreg: !prev.kvalreg }))} count={DATA.filter(i => getTagValues(i, "Verksamhetstyp").includes("kvalitetsregister")).length} color="#0E7490" />
+              </div>
+              <div style={{ height: 1, background: "#E5E7EB", margin: "4px 12px 8px" }} />
               <FilterSection title="Finansieringskälla" icon={<Banknote size={13} />}>
                 {["Regionerna", "Stat, inkl myndigheter och/eller privat", "EU"].map(fk => <FilterCheck key={fk} label={FK_LABELS[fk] || fk} checked={filters.fk.includes(fk)} onChange={() => toggleFilter("fk", fk)} count={DATA.filter(i => i.fk === fk).length} />)}
               </FilterSection>
@@ -3645,7 +3681,7 @@ export default function Dashboard() {
               {viewMode === "guide" ? (
                 <GuideView />
               ) : viewMode === "prioritized" ? (
-                <PrioritizedView data={sorted} overridesCache={overridesCache} refreshOverrides={async () => { const cache = await getAllOverrides(); setOverridesCache(cache); }} />
+                <PrioritizedView data={sorted} overridesCache={overridesCache} onClickItem={item => setDetailItem(item)} refreshOverrides={async () => { const cache = await getAllOverrides(); setOverridesCache(cache); }} />
               ) : viewMode === "prionetwork" ? (
                 <PrioNetworkView data={sorted} overridesCache={overridesCache} onClickItem={item => setDetailItem(item)} />
               ) : viewMode === "continuity" ? (
