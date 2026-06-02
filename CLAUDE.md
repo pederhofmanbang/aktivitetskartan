@@ -6,7 +6,7 @@ Brief context for the next Claude session on this repo.
 
 **Aktivitetskartan** — interactive mapping of Swedish health-data initiatives (React + Vite, deployed to Vercel). Single-file React app: `src/Dashboard.jsx` (~1.1 MB). Supabase for persistence.
 
-- Initiatives now: **178** (originally 97). Quality registers (kvalitetsregister) account for **80** of them, added in four batches.
+- Initiatives now: **189** (originally 97). Quality registers (kvalitetsregister) account for **91** of them, added in five batches.
 - Per-initiative storage: a fallback `DATA` array in `Dashboard.jsx` + an `overrides` layer in Supabase keyed by `nr`.
 
 ## What's been built
@@ -29,7 +29,7 @@ Brief context for the next Claude session on this repo.
 
 When adding kvalitetsregister via md batches, the established pattern is:
 
-- **nr**: next sequential, currently next free is **179**.
+- **nr**: next sequential, currently next free is **190**.
 - **Name**: `NKR {nkr-id} — {full name}` so the external NKR identifier is searchable and the catalogue order is meaningful.
 - **DATA-level fields**: `del: "A"`, `sub: "A1"`, `fk: "Regionerna"`, `tags: [{category:"Verksamhetstyp", values:"kvalitetsregister"}, {category:"Aktörstyp", values:"region"}]`.
 - **Override fields**: all 21 Prio-fields populated where the md provides them; `arbetaVidere: false` (NOT starred); `tags.anvfall: ["Kvalitetsregister", ...]`; `connections` array with `nr: 2` (the Nationella kvalitetsregister umbrella).
