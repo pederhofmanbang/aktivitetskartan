@@ -1862,7 +1862,7 @@ function GuideView() {
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
       <div style={{ textAlign: "center", marginBottom: 28 }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1B3A5C", margin: "0 0 4px 0", fontFamily: "'DM Sans', sans-serif" }}>Aktivitetskartan — lathund</h2>
-        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>97 hälsodatainitiativ — läs, analysera, redigera, kvalitetssäkra</p>
+        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>{DATA.length} hälsodatainitiativ — läs, analysera, redigera, kvalitetssäkra</p>
       </div>
 
       {/* TWO-COLUMN: Användare + Redaktör */}
@@ -1961,7 +1961,7 @@ function GuideView() {
       {/* FOOTER */}
       <div style={{ textAlign: "center", padding: "12px 0", color: "#9CA3AF", fontSize: 11.5, lineHeight: 1.6 }}>
         <div style={{ marginBottom: 4 }}>Alla ändringar sparas automatiskt i Supabase — delat mellan alla användare, alla enheter.</div>
-        <div>Grunddata (97 initiativ) är inbakad i appen och uppdateras vid ny deploy.</div>
+        <div>Grunddata ({DATA.length} initiativ) är inbakad i appen och uppdateras vid ny deploy.</div>
       </div>
     </div>
   );
@@ -3570,7 +3570,7 @@ export default function Dashboard() {
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
             <div style={{ flex: 1 }}>
               <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "'DM Sans', sans-serif", letterSpacing: -0.3 }}>Sveriges hälsodatainfrastruktur</h1>
-              <p style={{ fontSize: 12, opacity: 0.7, margin: "2px 0 0" }}>97 initiativ — Interaktiv kartläggning</p>
+              <p style={{ fontSize: 12, opacity: 0.7, margin: "2px 0 0" }}>{DATA.length} initiativ — Interaktiv kartläggning</p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "8px 14px", width: 280, border: "1px solid rgba(255,255,255,0.15)" }}>
               <Search size={15} style={{ opacity: 0.6, flexShrink: 0 }} />
