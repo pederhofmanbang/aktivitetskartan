@@ -3580,7 +3580,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: 20 }}>
-              <div><div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, opacity: 0.6, fontWeight: 600 }}>Initiativ</div><div style={{ fontSize: 26, fontWeight: 800, fontFamily: "'DM Sans', sans-serif" }}>{stats.count}<span style={{ fontSize: 14, opacity: 0.5, fontWeight: 400 }}> / 97</span></div></div>
+              <div><div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, opacity: 0.6, fontWeight: 600 }}>Initiativ</div><div style={{ fontSize: 26, fontWeight: 800, fontFamily: "'DM Sans', sans-serif" }}>{stats.count}<span style={{ fontSize: 14, opacity: 0.5, fontWeight: 400 }}> / {DATA.length}</span></div></div>
               <div style={{ width: 1, background: "rgba(255,255,255,0.15)" }} />
               <div><div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, opacity: 0.6, fontWeight: 600 }}>Finansiering</div><div style={{ fontSize: 26, fontWeight: 800, fontFamily: "'DM Sans', sans-serif" }}>{stats.msek > 0 ? (stats.msek / 1000).toFixed(1) : "0"}<span style={{ fontSize: 14, opacity: 0.5, fontWeight: 400 }}> mdkr SEK</span></div></div>
               <div style={{ width: 1, background: "rgba(255,255,255,0.15)" }} />
