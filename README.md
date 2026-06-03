@@ -1,6 +1,6 @@
 # Aktivitetskartan — Sveriges hälsodatainfrastruktur
 
-Interaktiv kartläggning av 189 svenska hälsodatainitiativ (varav 91 nationella kvalitetsregister). Byggd med React + Vite, deployad på Vercel.
+Interaktiv kartläggning av 196 svenska hälsodatainitiativ (varav 98 nationella kvalitetsregister). Byggd med React + Vite, deployad på Vercel.
 
 ---
 
