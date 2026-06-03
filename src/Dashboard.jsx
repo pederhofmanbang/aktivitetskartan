@@ -1688,7 +1688,6 @@ function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }
           {starred.map(item => {
             const ov = overrides[item.nr] || {};
             const col = DEL_COLORS[item.del] || {};
-            const f = ov.fields || {};
             return (
               <div key={item.nr} onClick={() => setModalItem(item)}
                 style={{ background: "#fff", border: "1px solid " + (col.border || "#E5E7EB"), borderLeft: "4px solid " + (col.border || "#E5E7EB"), borderRadius: 8, padding: 10, cursor: "pointer", display: "flex", flexDirection: "column", gap: 5, minHeight: 130, transition: "transform 0.1s, box-shadow 0.1s" }}
@@ -1700,8 +1699,8 @@ function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }
                   {ov.arbetaVidere && <span style={{ marginLeft: "auto", fontSize: 11 }} title="Stjärnmärkt">⭐</span>}
                 </div>
                 <div style={{ fontSize: 11.5, fontWeight: 700, color: "#1B3A5C", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{item.n}</div>
-                {f.status && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b style={{ color: "#374151" }}>Status:</b> {f.status}</div>}
-                {f.typ && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}><b style={{ color: "#374151" }}>Typ:</b> {f.typ}</div>}
+                {item.st && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b style={{ color: "#374151" }}>Mognadsgrad:</b> {item.st}</div>}
+                {item.typ && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}><b style={{ color: "#374151" }}>Typ:</b> {item.typ}</div>}
               </div>
             );
           })}
