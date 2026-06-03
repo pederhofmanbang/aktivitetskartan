@@ -1455,6 +1455,7 @@ function PrioFieldEditor({ field, item, override, setOverride, autoSave }) {
 function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }) {
   const [mode, setMode] = useState("starred"); // "starred" | "filled"
   const [layout, setLayout] = useState("list"); // "list" | "grid"
+  const [modalItem, setModalItem] = useState(null);
   const starred = useMemo(() => data.filter(i => {
     const ov = overridesCache[i.nr];
     if (mode === "starred") return ov && ov.arbetaVidere;
@@ -1586,6 +1587,65 @@ function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }
     w.print();
   };
 
+  const renderPrioCard = (item) => {
+    const col = DEL_COLORS[item.del];
+    const ov = overrides[item.nr];
+    if (!ov) return null;
+    return (
+      <div key={item.nr} style={{ background: "#fff", borderRadius: 14, border: "1px solid #D0D7DE", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+        <div style={{ height: 4, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
+        <div style={{ padding: "18px 24px 22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+            <input type="checkbox" checked={selectedExport.has(item.nr)} onChange={() => toggleExportSelect(item.nr)} style={{ width: 16, height: 16, accentColor: "#1B3A5C", cursor: "pointer", flexShrink: 0 }} title="Markera för export/utskrift" />
+            <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "3px 10px", borderRadius: 6 }}>{item.sub}</span>
+            <span style={{ fontSize: 11, color: "#3a4a5a", fontWeight: 600 }}>Nr {item.nr}</span>
+            <span style={{ fontSize: 13 }}>⭐</span>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: "#0f1f2e", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
+          </div>
+          {PRIO_SECTIONS.map(section => (
+            <div key={section.title} style={{ marginBottom: 16 }}>
+              <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
+                <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
+                  <span style={{ color: "#5a7a9a", marginRight: 6 }}>{section.nr}.</span>{section.title}
+                </h4>
+              </div>
+              <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: section.fields.length === 1 ? "1fr" : "1fr 1fr", gap: "10px 24px" }}>
+                  {section.fields.map(f => (
+                    <div key={f.key}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#2c3e50", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 }}>{f.label}</div>
+                      <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
+              <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
+                <span style={{ color: "#5a7a9a", marginRight: 6 }}>7.</span>Taggning
+              </h4>
+            </div>
+            <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
+              <TagGroupPicker override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} itemNr={item.nr} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
+              <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
+                <span style={{ color: "#5a7a9a", marginRight: 6 }}>8.</span>Kopplingar till andra prioriterade
+              </h4>
+            </div>
+            <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
+              <ConnectionPicker itemNr={item.nr} starred={starred} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} overridesCache={overridesCache} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (starred.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: 60, color: "#5a6a7a" }}>
@@ -1630,7 +1690,7 @@ function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }
             const col = DEL_COLORS[item.del] || {};
             const f = ov.fields || {};
             return (
-              <div key={item.nr} onClick={() => onClickItem && onClickItem(item)}
+              <div key={item.nr} onClick={() => setModalItem(item)}
                 style={{ background: "#fff", border: "1px solid " + (col.border || "#E5E7EB"), borderLeft: "4px solid " + (col.border || "#E5E7EB"), borderRadius: 8, padding: 10, cursor: "pointer", display: "flex", flexDirection: "column", gap: 5, minHeight: 130, transition: "transform 0.1s, box-shadow 0.1s" }}
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
@@ -1648,65 +1708,18 @@ function PrioritizedView({ data, overridesCache, refreshOverrides, onClickItem }
         </div>
       )}
       <div style={{ display: layout === "list" ? "flex" : "none", flexDirection: "column", gap: 20 }}>
-        {starred.map(item => {
-          const col = DEL_COLORS[item.del];
-          const ov = overrides[item.nr];
-          if (!ov) return null;
-          return (
-            <div key={item.nr} style={{ background: "#fff", borderRadius: 14, border: "1px solid #D0D7DE", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", overflow: "hidden" }}>
-              <div style={{ height: 4, background: `linear-gradient(90deg, ${col.border}, ${col.border}88)` }} />
-              <div style={{ padding: "18px 24px 22px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                  <input type="checkbox" checked={selectedExport.has(item.nr)} onChange={() => toggleExportSelect(item.nr)} style={{ width: 16, height: 16, accentColor: "#1B3A5C", cursor: "pointer", flexShrink: 0 }} title="Markera för export/utskrift" />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: col.text, background: col.bg, padding: "3px 10px", borderRadius: 6 }}>{item.sub}</span>
-                  <span style={{ fontSize: 11, color: "#3a4a5a", fontWeight: 600 }}>Nr {item.nr}</span>
-                  <span style={{ fontSize: 13 }}>⭐</span>
-                  <h3 style={{ fontSize: 17, fontWeight: 800, color: "#0f1f2e", margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
-                </div>
-                {PRIO_SECTIONS.map(section => (
-                  <div key={section.title} style={{ marginBottom: 16 }}>
-                    <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
-                      <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
-                        <span style={{ color: "#5a7a9a", marginRight: 6 }}>{section.nr}.</span>{section.title}
-                      </h4>
-                    </div>
-                    <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: section.fields.length === 1 ? "1fr" : "1fr 1fr", gap: "10px 24px" }}>
-                        {section.fields.map(f => (
-                          <div key={f.key}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: "#2c3e50", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 }}>{f.label}</div>
-                            <PrioFieldEditor field={f} item={item} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
-                    <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
-                      <span style={{ color: "#5a7a9a", marginRight: 6 }}>7.</span>Taggning
-                    </h4>
-                  </div>
-                  <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
-                    <TagGroupPicker override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} itemNr={item.nr} />
-                  </div>
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ borderLeft: "3px solid #1B3A5C", paddingLeft: 10, marginBottom: 8 }}>
-                    <h4 style={{ fontSize: 12.5, fontWeight: 700, color: "#1B3A5C", margin: 0, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: "'DM Sans', sans-serif" }}>
-                      <span style={{ color: "#5a7a9a", marginRight: 6 }}>8.</span>Kopplingar till andra prioriterade
-                    </h4>
-                  </div>
-                  <div style={{ background: "#F6F8FA", borderRadius: 8, padding: "12px 16px" }}>
-                    <ConnectionPicker itemNr={item.nr} starred={starred} override={ov} setOverride={setOvForNr(item.nr)} autoSave={autoSaveForNr(item.nr)} overridesCache={overridesCache} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {starred.map(item => renderPrioCard(item))}
       </div>
+      {modalItem && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", padding: "40px 20px", overflowY: "auto" }} onClick={() => setModalItem(null)}>
+          <div style={{ width: "100%", maxWidth: 900 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setModalItem(null)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)", color: "#1B3A5C", fontSize: 18, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }} title="Stäng">×</button>
+            </div>
+            {renderPrioCard(modalItem)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
