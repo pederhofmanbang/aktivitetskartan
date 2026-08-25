@@ -18,8 +18,15 @@ Brief context for the next Claude session on this repo.
 
 **Prioriterade view enhancements**
 - ⭐ toggle `mode = "starred" | "filled"` (filled = at least one Prio-only field populated).
-- Layout toggle `layout = "list" | "grid"` — grid shows compact cards, click opens DetailModal.
+- Layout toggle `layout = "list" | "grid"`. In grid mode, clicking a card opens a **Prio-card modal** (via `renderPrioCard`, extracted helper reused by both list and modal) — NOT the generic `DetailModal`. This keeps grid+list editing consistent (PR #28).
+- Grid card preview shows `item.st` (labeled "Mognadsgrad") and `item.typ` — from DATA, not from override Prio-fields, so preview matches the rest of the app (PR #29).
 - Header search and sidebar filters now apply via `sorted` prop (fixed in PR #17).
+
+**Dynamic UI counts**
+- Header, lathund and top stat tile all use `{DATA.length}` — never hardcode initiative counts (PR #26, #27). Same rule applies to README.md and CLAUDE.md line 9 when a new batch lands.
+
+**Registerplattformskonsolidering (nr 64)**
+- The Prio-override has all 21 Prio-fields filled from the CPUA-konsolidering markdown; kept `arbetaVidere: true` (starred).
 
 **Sidebar quick filter**
 - New "Snabbfilter" section in the sidebar between Ursprung and Finansieringskälla, with a `📋 Kvalitetsregister` toggle that filters anything tagged `verksamhetstyp = kvalitetsregister`.
@@ -35,21 +42,27 @@ When adding kvalitetsregister via md batches, the established pattern is:
 - **Override fields**: all 21 Prio-fields populated where the md provides them; `arbetaVidere: false` (NOT starred); `tags.anvfall: ["Kvalitetsregister", ...]`; `connections` array with `nr: 2` (the Nationella kvalitetsregister umbrella).
 - **CPUA-avvikelse**: when source notes the actual CPUA differs from the batch focus region, capture it in DATA `korr` field. The parser handles two formats: `> **Korrigering:** ...` (blockquote) and `**CPUA-avvikelse: ...**` (inline bold paragraph).
 
-## Md-parser workflow (proven across four batches)
+## Batch workflow (proven across six batches)
 
-Reusable parser at `/tmp/parse_kvalreg{N}.js` (the one in batch 4 covers all observed format variations):
+Batches 1–4 used a regex md-parser; batches 5–6 switched to a hand-crafted **build script** (`/tmp/build_kvalreg{N}.js`) that hardcodes the parsed entries as JS objects — more reliable than parsing when the md-format varies. Prefer the build-script approach for new batches unless the incoming md is highly regular.
 
-- Splits on `## (?=\d+ )` headers (handles both `NN Name` and `NN – Name`).
-- Section regex tolerates both `**1. Syfte & behov.**` and `**1. Syfte & behov**`.
-- For section 5 (Ekonomi & strategi), tries explicit `Ekonomisk modell:` / `Strategisk betydelse:` labels first, falls back to first-sentence split.
-- Output: per-register JS objects → DATA entries + Supabase upsert SQL.
+Build-script skeleton (batch 5 and 6 are good templates):
+- Array of `{nr, nkrId, name, fields: {...all 21 Prio-fields...}, anvfall, anvomrade, connections, korr}` objects.
+- Emits: `/tmp/data_entriesN.json` (DATA rows) + `/tmp/upsertN_batch_{1..3}.sql` (SQL upserts, split into ~3–4 rows per batch to keep payloads small).
 
-After parsing:
-1. Generate DATA entries with `node /tmp/build_kvalreg.js`.
-2. Append into `src/Dashboard.jsx` by replacing the unique anchor `}];\n/* ─────────── CONSTANTS ─────────── */` with `},{new_entries}];\n/* ─────────── CONSTANTS ─────────── */`.
-3. `npm run build` to validate, then commit, push, open PR, merge.
-4. Run the SQL upserts via `mcp__12cfdc37-7cbb-487b-bb5d-25c6f5e65331__execute_sql` in batches of ~5–6 transactions to keep payloads manageable.
-5. Supabase project id: `gcbqrrspmnfakkxyhqdv`.
+Steps:
+1. Run the build script: `node /tmp/build_kvalreg{N}.js`.
+2. Append DATA entries into `src/Dashboard.jsx` by replacing the unique anchor `}];\n/* ─────────── CONSTANTS ─────────── */` with `},{new_entries}];\n/* ─────────── CONSTANTS ─────────── */`.
+3. `npm run build` to validate.
+4. Run the SQL upserts via the Supabase `execute_sql` MCP tool (tool name has varied per session — the current session uses `mcp__Supabase__execute_sql`, older sessions used `mcp__12cfdc37-...__execute_sql`; project id is stable: `gcbqrrspmnfakkxyhqdv`).
+5. Verify with `SELECT nr FROM overrides WHERE nr BETWEEN {min} AND {max}` — all rows must appear.
+6. Bump CLAUDE.md line 9 (total + kvalreg counts + batch count) and README.md line 3.
+7. Commit, push, open PR, squash-merge.
+
+CPUA-avvikelse handling: capture in the DATA `korr` field AND in the override `ovrigt` field (both). See nr 182 SOReg, nr 190 Bråck, nr 195 PsoReg for reference.
+
+Registers that were deliberately SKIPPED (wrong CPUA vs the batch's focus region):
+- **NKR 183 Kvalitetsregister ECT** — CPUA is Region Örebro län (not Västerbotten). Belongs in a future Örebro-batch.
 
 ## House style
 
