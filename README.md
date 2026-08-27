@@ -2,6 +2,11 @@
 
 Interaktiv kartläggning av 196 svenska hälsodatainitiativ (varav 98 nationella kvalitetsregister). Byggd med React + Vite, deployad på Vercel.
 
+Repot innehåller två appar:
+
+- **Interna appen** (repo-roten, `src/Dashboard.jsx`) — redigeringsmiljön på aktivitetskartan.vercel.app. Grunddatat ligger i den delade modulen `src/data.js`.
+- **Hälsodatakartan** (`publik/`) — publik, läsbar vy på [kartan.kchd.se](https://kartan.kchd.se) i SKR:s grafiska profil, med förslagfunktioner (ändringar, nya initiativ, kvalitetssäkrare) som pingar via GitHub-issues och landar i interna appens Inkorg-flik. Eget Vercel-projekt med Root Directory `publik`.
+
 ---
 
 ## Användare (läsläge)
