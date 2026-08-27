@@ -1,0 +1,39 @@
+# Deployar båda Vercel-projekten på varje push till main, via Vercels CLI —
+# oberoende av GitHub→Vercel-integrationens webhookar (som tappade
+# main-pushar 2026-08-27, se CLAUDE.md avsnittet "Vercel-deploy").
+#
+# Kräver repo-secret VERCEL_TOKEN (vercel.com/account/settings/tokens).
+# Utan den hoppar jobben över sig själva i stället för att bli röda.
+name: Deploy till Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - namn: aktivitetskartan (interna)
+            project_id: prj_2UU10xuLx5EImwzskrYc2ufze6ih
+          - namn: halsodatakartan (publika)
+            project_id: prj_onV5xUv0UHGWrs0DR9gcR6zKVbqZ
+    name: ${{ matrix.namn }}
+    env:
+      VERCEL_ORG_ID: team_bzLmIaVWDHhx4TIRgDYAnpuq
+      VERCEL_PROJECT_ID: ${{ matrix.project_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploya till produktion
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN saknas som repo-secret — hoppar över deployen."
+            exit 0
+          fi
+          npx vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"
