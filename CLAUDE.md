@@ -94,3 +94,5 @@ Registers that were deliberately SKIPPED (wrong CPUA vs the batch's focus region
 - UI tweaks to Prioriterade or the sidebar filter.
 
 If the user pastes a markdown catalogue of registers, prefer to reuse the batch-4 parser as a starting point — it already handles the structural variations seen across batches 1–4.
+
+> Felsökningsnot 2026-08-27: main-pushar via API-squash-merge slutade trigga Vercel-deployer; direktpush till main testad som diskriminator.
