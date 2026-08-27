@@ -28,9 +28,13 @@ export function useRouter() {
   return useContext(RouterContext);
 }
 
-export function Link({ to, children, ...rest }) {
+export function Link({ to, children, onClick: userOnClick, ...rest }) {
   const { navigate } = useRouter();
+  // Egen onClick från anroparen får INTE skriva över SPA-navigeringen —
+  // annars blir varje klick en full sidomladdning.
   const onClick = (e) => {
+    if (userOnClick) userOnClick(e);
+    if (e.defaultPrevented) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
     navigate(to);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { RouterProvider, useRouter } from "./router.jsx";
 import { fetchOverrides } from "./api.js";
 import Nav from "./components/Nav.jsx";
@@ -6,9 +6,11 @@ import Footer from "./components/Footer.jsx";
 import Explorer from "./components/Explorer.jsx";
 import Detail from "./components/Detail.jsx";
 import Matrix from "./components/Matrix.jsx";
-import Network from "./components/Network.jsx";
 import { CandidateForm, ReviewerForm } from "./components/Forms.jsx";
 import About from "./components/About.jsx";
+
+// d3 är tungt — nätverkskartan lastas först när någon öppnar den.
+const Network = lazy(() => import("./components/Network.jsx"));
 
 function Routes({ overrides }) {
   const { path } = useRouter();
@@ -16,7 +18,18 @@ function Routes({ overrides }) {
   const initiativMatch = path.match(/^\/initiativ\/(\d+)$/);
   if (initiativMatch) return <Detail nr={Number(initiativMatch[1])} overrides={overrides} />;
   if (path === "/matris") return <Matrix overrides={overrides} />;
-  if (path === "/natverk") return <Network overrides={overrides} />;
+  if (path === "/natverk")
+    return (
+      <Suspense
+        fallback={
+          <div className="container" style={{ padding: "48px 20px", color: "#6f6a64" }}>
+            Läser in nätverkskartan …
+          </div>
+        }
+      >
+        <Network overrides={overrides} />
+      </Suspense>
+    );
   if (path === "/foresla") return <CandidateForm />;
   if (path === "/kvalitetssakrare") return <ReviewerForm />;
   if (path === "/om") return <About />;
