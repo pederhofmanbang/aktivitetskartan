@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   DATA, FACETS, GRANSKNING, KATEGORI_MAP, kategoriOf, granskningOf,
-  maturityOf, maturityLabel, applyFilters, facetCounts, sortItems, SORTS,
+  maturityOf, maturityLabel, fieldValue, applyFilters, facetCounts, sortItems, SORTS,
   selectionsToParams, paramsToSelections,
 } from "../model.js";
 import { Link } from "../router.jsx";
@@ -68,6 +68,9 @@ function Facets({ counts, selections, toggle, clearAll, activeCount }) {
 function Card({ item, ov }) {
   const k = KATEGORI_MAP[kategoriOf(item)];
   const m = maturityOf(item, ov);
+  // Override-lagret vinner även på korten.
+  const name = fieldValue(item, "n", ov);
+  const ans = fieldValue(item, "ans", ov) || "—";
   return (
     <Link to={`/initiativ/${item.nr}`} className="card" style={{ borderLeftColor: k.color }}>
       <div className="card__meta">
@@ -75,14 +78,14 @@ function Card({ item, ov }) {
         <GranskningBadge nivå={granskningOf(ov)} />
         <span>Nr {item.nr}</span>
       </div>
-      <h3>{item.n}</h3>
+      <h3>{name}</h3>
       <dl className="card__facts">
         <div>
-          <dt>Mognadsgrad:</dt> <dd>{m ? maturityLabel(m) : item.st || "—"}</dd>
+          <dt>Mognadsgrad:</dt> <dd>{m ? maturityLabel(m) : fieldValue(item, "st", ov) || "—"}</dd>
         </div>
         <div>
           <dt>Ansvarig:</dt>{" "}
-          <dd>{(item.ans || "—").length > 90 ? item.ans.slice(0, 90) + "…" : item.ans || "—"}</dd>
+          <dd>{ans.length > 90 ? ans.slice(0, 90) + "…" : ans}</dd>
         </div>
       </dl>
     </Link>
@@ -111,7 +114,7 @@ function ListTable({ items, overrides }) {
               <tr key={item.nr}>
                 <td>{item.nr}</td>
                 <td>
-                  <Link to={`/initiativ/${item.nr}`}>{item.n}</Link>
+                  <Link to={`/initiativ/${item.nr}`}>{fieldValue(item, "n", ov)}</Link>
                 </td>
                 <td>
                   <KategoriChip item={item} />
