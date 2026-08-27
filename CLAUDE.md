@@ -4,7 +4,11 @@ Brief context for the next Claude session on this repo.
 
 ## Project at a glance
 
-**Aktivitetskartan** — interactive mapping of Swedish health-data initiatives (React + Vite, deployed to Vercel). Single-file React app: `src/Dashboard.jsx` (~1.1 MB). Supabase for persistence.
+**Aktivitetskartan** — interactive mapping of Swedish health-data initiatives (React + Vite, deployed to Vercel). Single-file React app: `src/Dashboard.jsx`. The `DATA` array now lives in **`src/data.js`** (shared module, ~400 KB) — imported by both the internal app and the public app. Supabase for persistence.
+
+**Two apps in this repo:**
+- **Internal app** (repo root, `src/Dashboard.jsx`) — aktivitetskartan.vercel.app, the editing environment. Unchanged behaviour.
+- **Public app** (`publik/`) — **Hälsodatakartan**, kartan.kchd.se, read-only publik vy i SKR:s grafiska profil (tokens från `pederhofmanbang/kunskapsutveckling` → `knowledge/mallar/skr-grafisk-profil.md`). Own Vercel project with Root Directory `publik`. Serverless functions `publik/api/overrides.js` (read, service key) and `publik/api/forslag.js` (submissions → Supabase-tabellerna `public_field_suggestions` / `public_candidate_suggestions` / `public_reviewers` + GitHub-issue-ping). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `KARTAN_GH_TOKEN`, `KARTAN_GH_REPO`. **Ingen Supabase-nyckel i webbläsaren** — de nya tabellerna har RLS utan policies (endast service role). Granskningsmärkning: `arbetaVidere: true` ⇒ "Kurerad", annars "AI-sammanställd".
 
 - Initiatives now: **196** (originally 97). Quality registers (kvalitetsregister) account for **98** of them, added in six batches.
 - Per-initiative storage: a fallback `DATA` array in `Dashboard.jsx` + an `overrides` layer in Supabase keyed by `nr`.
@@ -27,6 +31,9 @@ Brief context for the next Claude session on this repo.
 
 **Registerplattformskonsolidering (nr 64)**
 - The Prio-override has all 21 Prio-fields filled from the CPUA-konsolidering markdown; kept `arbetaVidere: true` (starred).
+
+**Inkorg-flik (📥)**
+- `InboxView` in Dashboard.jsx lists submissions from the public app's three Supabase tables with status ny/hanterad/avvisad + GitHub-issue links. Data goes through `api/inkorg.js` (repo root — serverless in the INTERNAL Vercel project) which holds the service key server-side and requires the password in env `KARTAN_ADMIN_PASSWORD` (header `x-kartan-pass`, cached in localStorage). Internal Vercel project therefore needs env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `KARTAN_ADMIN_PASSWORD`.
 
 **Sidebar quick filter**
 - New "Snabbfilter" section in the sidebar between Ursprung and Finansieringskälla, with a `📋 Kvalitetsregister` toggle that filters anything tagged `verksamhetstyp = kvalitetsregister`.
@@ -52,7 +59,7 @@ Build-script skeleton (batch 5 and 6 are good templates):
 
 Steps:
 1. Run the build script: `node /tmp/build_kvalreg{N}.js`.
-2. Append DATA entries into `src/Dashboard.jsx` by replacing the unique anchor `}];\n/* ─────────── CONSTANTS ─────────── */` with `},{new_entries}];\n/* ─────────── CONSTANTS ─────────── */`.
+2. Append DATA entries into **`src/data.js`** (NOT Dashboard.jsx — DATA moved there) by replacing the unique anchor `}];\n/* ─────────── END DATA ─────────── */` with `},{new_entries}];\n/* ─────────── END DATA ─────────── */`.
 3. `npm run build` to validate.
 4. Run the SQL upserts via the Supabase `execute_sql` MCP tool (tool name has varied per session — the current session uses `mcp__Supabase__execute_sql`, older sessions used `mcp__12cfdc37-...__execute_sql`; project id is stable: `gcbqrrspmnfakkxyhqdv`).
 5. Verify with `SELECT nr FROM overrides WHERE nr BETWEEN {min} AND {max}` — all rows must appear.
