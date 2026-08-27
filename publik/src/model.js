@@ -265,7 +265,7 @@ export function searchMatch(item, ov, q) {
   if (!q) return true;
   const hay = [
     item.n, item.nk, item.ans, item.akt, item.ds, item.tek, String(item.nr),
-    fieldValue(item, "nk", ov),
+    fieldValue(item, "n", ov), fieldValue(item, "nk", ov), fieldValue(item, "ans", ov),
   ]
     .filter(Boolean)
     .join(" ")

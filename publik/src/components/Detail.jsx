@@ -151,7 +151,12 @@ export default function Detail({ nr, overrides }) {
   const k = KATEGORI_MAP[kategoriOf(item)];
   const g = GRANSKNING[granskningOf(ov)];
   const m = maturityOf(item, ov);
-  const deps = (item.dep || "")
+  // Override-lagret vinner överallt — inte bara i sektionerna.
+  const fv = (f) => fieldValue(item, f, ov);
+  const nytta = fv("nytta");
+  const aiRows = fv("ai");
+  const kchdRows = fv("kchd");
+  const deps = String(fv("dep") || "")
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => byNr.has(n));
@@ -174,7 +179,7 @@ export default function Detail({ nr, overrides }) {
             Nr {item.nr} · {SUB_LABELS[item.sub] || item.sub}
           </span>
         </div>
-        <h1>{item.n}</h1>
+        <h1>{fv("n")}</h1>
       </header>
 
       <p className="granskning-note">
@@ -183,41 +188,41 @@ export default function Detail({ nr, overrides }) {
       </p>
 
       <dl className="factgrid">
-        <div><dt>Ansvarig</dt><dd>{item.ans || "—"}</dd></div>
-        <div><dt>Finansieringskälla</dt><dd>{item.fk || "—"}</dd></div>
-        <div><dt>Finansiering</dt><dd>{item.fin || "—"}</dd></div>
-        <div><dt>Tidplan</dt><dd>{item.tid || "—"}</dd></div>
-        <div><dt>Mognadsgrad</dt><dd>{m ? maturityLabel(m) : "—"}{item.st ? ` (${item.st})` : ""}</dd></div>
-        <div><dt>EHDS-relevans</dt><dd>{ehdsOf(item) || "—"}</dd></div>
+        <div><dt>Ansvarig</dt><dd>{fv("ans") || "—"}</dd></div>
+        <div><dt>Finansieringskälla</dt><dd>{fv("fk") || "—"}</dd></div>
+        <div><dt>Finansiering</dt><dd>{fv("fin") || "—"}</dd></div>
+        <div><dt>Tidplan</dt><dd>{fv("tid") || "—"}</dd></div>
+        <div><dt>Mognadsgrad</dt><dd>{m ? maturityLabel(m) : "—"}{fv("st") ? ` (${fv("st")})` : ""}</dd></div>
+        <div><dt>EHDS-relevans</dt><dd>{ehdsOf({ ehds: fv("ehds") }) || "—"}</dd></div>
       </dl>
 
-      {item.nk && (
+      {fv("nk") && (
         <section>
           <h2>Beskrivning</h2>
-          <p style={{ whiteSpace: "pre-wrap" }}>{fieldValue(item, "nk", ov)}</p>
+          <p style={{ whiteSpace: "pre-wrap" }}>{fv("nk")}</p>
         </section>
       )}
 
-      {(item.fok || item.mg) && (
+      {(fv("fok") || fv("mg")) && (
         <section>
           <h2>Fokus och målgrupp</h2>
-          {item.fok && (
-            <div className="fieldrow"><h3>Hälsodatafokus</h3><p>{fieldValue(item, "fok", ov)}</p></div>
+          {fv("fok") && (
+            <div className="fieldrow"><h3>Hälsodatafokus</h3><p>{fv("fok")}</p></div>
           )}
-          {item.mg && (
-            <div className="fieldrow"><h3>Målgrupp</h3><p>{fieldValue(item, "mg", ov)}</p></div>
+          {fv("mg") && (
+            <div className="fieldrow"><h3>Målgrupp</h3><p>{fv("mg")}</p></div>
           )}
         </section>
       )}
 
-      {(item.tek || item.ds) && (
+      {(fv("tek") || fv("ds")) && (
         <section>
           <h2>Teknik och standarder</h2>
-          {item.tek && (
-            <div className="fieldrow"><h3>Teknisk miljö</h3><p>{fieldValue(item, "tek", ov)}</p></div>
+          {fv("tek") && (
+            <div className="fieldrow"><h3>Teknisk miljö</h3><p>{fv("tek")}</p></div>
           )}
-          {item.ds && (
-            <div className="fieldrow"><h3>Datastandarder</h3><p>{fieldValue(item, "ds", ov)}</p></div>
+          {fv("ds") && (
+            <div className="fieldrow"><h3>Datastandarder</h3><p>{fv("ds")}</p></div>
           )}
           {ov?.tags?.standarder?.length > 0 && (
             <div className="conn-list" style={{ marginTop: 8 }}>
@@ -229,18 +234,18 @@ export default function Detail({ nr, overrides }) {
         </section>
       )}
 
-      {item.akt && (
+      {fv("akt") && (
         <section>
           <h2>Aktörer</h2>
-          <p>{fieldValue(item, "akt", ov)}</p>
+          <p>{fv("akt")}</p>
         </section>
       )}
 
-      {Array.isArray(item.nytta) && item.nytta.length > 0 && (
+      {Array.isArray(nytta) && nytta.length > 0 && (
         <section>
           <h2>Nytta</h2>
           <ul className="nytta-list">
-            {item.nytta.map((n, i) => (
+            {nytta.map((n, i) => (
               <li key={i}>
                 <span className="level">{n.level}</span>
                 <span>{n.text}</span>
@@ -333,20 +338,20 @@ export default function Detail({ nr, overrides }) {
         </section>
       )}
 
-      {(item.ai?.length > 0 || item.kchd?.length > 0) && (
+      {(aiRows?.length > 0 || kchdRows?.length > 0) && (
         <section>
           <details className="scores">
             <summary>Relevansbedömning (AI-potential och KCHD-relevans)</summary>
-            {item.ai?.length > 0 && (
+            {aiRows?.length > 0 && (
               <>
                 <h3 style={{ fontSize: "0.88rem", margin: "12px 0 4px" }}>AI-potential</h3>
-                <ScoreRows rows={item.ai} />
+                <ScoreRows rows={aiRows} />
               </>
             )}
-            {item.kchd?.length > 0 && (
+            {kchdRows?.length > 0 && (
               <>
                 <h3 style={{ fontSize: "0.88rem", margin: "12px 0 4px" }}>KCHD-relevans</h3>
-                <ScoreRows rows={item.kchd} />
+                <ScoreRows rows={kchdRows} />
               </>
             )}
           </details>
@@ -370,10 +375,10 @@ export default function Detail({ nr, overrides }) {
         </section>
       )}
 
-      {item.korr && (
+      {fv("korr") && (
         <section>
           <h2>Korrigering</h2>
-          <p>{item.korr}</p>
+          <p>{fv("korr")}</p>
         </section>
       )}
 
