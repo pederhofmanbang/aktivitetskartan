@@ -11,9 +11,8 @@ export default function Footer() {
             <p>
               En kartläggning av svenska hälsodatainitiativ — infrastruktur,
               kvalitetsregister, samverkan, superdatorcentra och lagstiftning.
-              En tjänst från Kompetenscentrum hälsodata (KCHD), regionernas
-              gemensamma resurs för vårddatahantering inom Nationellt system
-              för kunskapsstyrning.
+              En tjänst från den regiongemensamma samarbetsplattformen inom
+              AI, som samordnas av SKR.
             </p>
           </div>
           <div>
@@ -35,7 +34,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="footer__bottom">
-          Kompetenscentrum hälsodata · Uppgifterna på kartan kan innehålla fel —
+          Regiongemensam samarbetsplattform inom AI · Uppgifterna på kartan kan innehålla fel —
           se märkningen på varje initiativ och föreslå gärna rättelser.
         </div>
       </div>
