@@ -32,6 +32,9 @@ Brief context for the next Claude session on this repo.
 **Registerplattformskonsolidering (nr 64)**
 - The Prio-override has all 21 Prio-fields filled from the CPUA-konsolidering markdown; kept `arbetaVidere: true` (starred).
 
+**Inkorg-flik (📥)**
+- `InboxView` in Dashboard.jsx lists submissions from the public app's three Supabase tables with status ny/hanterad/avvisad + GitHub-issue links. Data goes through `api/inkorg.js` (repo root — serverless in the INTERNAL Vercel project) which holds the service key server-side and requires the password in env `KARTAN_ADMIN_PASSWORD` (header `x-kartan-pass`, cached in localStorage). Internal Vercel project therefore needs env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `KARTAN_ADMIN_PASSWORD`.
+
 **Sidebar quick filter**
 - New "Snabbfilter" section in the sidebar between Ursprung and Finansieringskälla, with a `📋 Kvalitetsregister` toggle that filters anything tagged `verksamhetstyp = kvalitetsregister`.
 - State: `const [quickFilter, setQuickFilter] = useState({ kvalreg: false })`.

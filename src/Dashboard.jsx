@@ -3359,6 +3359,174 @@ function MatrixView({ data, onClickItem }) {
     </div>
   );
 }
+/* ─────────── INKORG (inskick från publika Hälsodatakartan) ─────────── */
+const INBOX_SECTIONS = [
+  { key: "andringar", label: "Ändringsförslag", icon: "✏️", fields: [
+    ["initiativ", "Initiativ"], ["falt", "Fält"], ["forslag", "Förslag"], ["kalla", "Källa"],
+    ["namn", "Namn"], ["epost", "E-post"], ["organisation", "Organisation"],
+  ]},
+  { key: "kandidater", label: "Initiativförslag", icon: "💡", fields: [
+    ["namn", "Namn"], ["organisation", "Organisation"], ["beskrivning", "Beskrivning"],
+    ["varfor", "Varför"], ["kalla", "Källa"], ["foreslagenAv", "Föreslagen av"], ["epost", "E-post"],
+  ]},
+  { key: "granskare", label: "Kvalitetssäkrare", icon: "🔍", fields: [
+    ["namn", "Namn"], ["epost", "E-post"], ["organisation", "Organisation"],
+    ["roll", "Roll"], ["omraden", "Områden"], ["meddelande", "Meddelande"],
+  ]},
+];
+const INBOX_STATUSES = ["ny", "hanterad", "avvisad"];
+const INBOX_STATUS_COLORS = { ny: "#B45309", hanterad: "#166534", avvisad: "#6B7280" };
+
+function InboxView() {
+  const [pass, setPass] = useState(() => localStorage.getItem("kartan_admin_pass") || "");
+  const [input, setInput] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("alla");
+
+  const call = async (body, p) => {
+    const res = await fetch("/api/inkorg", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-kartan-pass": p },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || "HTTP " + res.status);
+    return json;
+  };
+
+  const load = async (p) => {
+    setLoading(true);
+    setError("");
+    try {
+      setData(await call({ action: "list" }, p));
+      setAuthed(true);
+      localStorage.setItem("kartan_admin_pass", p);
+    } catch (e) {
+      setError(e.message);
+      setAuthed(false);
+      localStorage.removeItem("kartan_admin_pass");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (pass) load(pass);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setStatus = async (typ, id, status) => {
+    setData((prev) => ({
+      ...prev,
+      [typ]: prev[typ].map((r) => (r.id === id ? { ...r, status } : r)),
+    }));
+    try {
+      await call({ action: "setStatus", typ, id, status }, pass);
+    } catch (e) {
+      setError("Kunde inte spara status: " + e.message);
+    }
+  };
+
+  if (!authed) {
+    return (
+      <div style={{ maxWidth: 420, margin: "60px auto", background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, padding: 32 }}>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>📥 Inkorg</h2>
+        <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
+          Inskick från publika Hälsodatakartan. Ange administratörslösenordet
+          (env <code>KARTAN_ADMIN_PASSWORD</code> i Vercel).
+        </p>
+        <form onSubmit={(e) => { e.preventDefault(); setPass(input); load(input); }}>
+          <input
+            type="password"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Lösenord"
+            style={{ width: "100%", padding: "10px 12px", border: "1px solid #D1D5DB", borderRadius: 8, fontSize: 14, marginBottom: 10 }}
+          />
+          <button type="submit" disabled={loading || !input} style={{ padding: "9px 20px", borderRadius: 8, border: "none", background: "#1A56DB", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
+            {loading ? "Kontrollerar …" : "Öppna inkorgen"}
+          </button>
+        </form>
+        {error && <p style={{ color: "#B91C1C", fontSize: 13, marginTop: 10 }}>{error}</p>}
+      </div>
+    );
+  }
+
+  const totalNy = data
+    ? INBOX_SECTIONS.reduce((acc, s) => acc + (data[s.key] || []).filter((r) => r.status === "ny").length, 0)
+    : 0;
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+        <h2 style={{ fontSize: 20 }}>📥 Inkorg</h2>
+        <span style={{ fontSize: 12, color: "#6B7280" }}>
+          {totalNy} nya inskick från publika Hälsodatakartan
+        </span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {["alla", ...INBOX_STATUSES].map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)} style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", border: statusFilter === s ? "1px solid #1A56DB" : "1px solid #E5E7EB", background: statusFilter === s ? "#E8F0FE" : "#fff", color: statusFilter === s ? "#1A56DB" : "#6B7280" }}>
+              {s === "alla" ? "Alla" : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+          <button onClick={() => load(pass)} disabled={loading} style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #E5E7EB", background: "#fff", color: "#6B7280" }}>
+            {loading ? "Hämtar …" : "↻ Uppdatera"}
+          </button>
+        </div>
+      </div>
+      {error && <p style={{ color: "#B91C1C", fontSize: 13, marginBottom: 10 }}>{error}</p>}
+      {INBOX_SECTIONS.map((sec) => {
+        const rows = (data?.[sec.key] || []).filter((r) => statusFilter === "alla" || r.status === statusFilter);
+        return (
+          <div key={sec.key} style={{ marginBottom: 28 }}>
+            <h3 style={{ fontSize: 15, marginBottom: 8 }}>
+              {sec.icon} {sec.label}{" "}
+              <span style={{ fontSize: 12, color: "#6B7280", fontWeight: 400 }}>
+                ({(data?.[sec.key] || []).filter((r) => r.status === "ny").length} nya · {(data?.[sec.key] || []).length} totalt)
+              </span>
+            </h3>
+            {rows.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#9CA3AF", padding: "8px 0" }}>Inget att visa.</p>
+            ) : (
+              rows.map((r) => (
+                <div key={r.id} style={{ background: "#fff", border: "1px solid #E5E7EB", borderLeft: `4px solid ${INBOX_STATUS_COLORS[r.status] || "#E5E7EB"}`, borderRadius: 8, padding: "12px 16px", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, color: "#6B7280" }}>
+                      {String(r.created_at).slice(0, 16).replace("T", " ")}
+                    </span>
+                    <select value={r.status} onChange={(e) => setStatus(sec.key, r.id, e.target.value)} style={{ fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6, border: "1px solid #D1D5DB", color: INBOX_STATUS_COLORS[r.status] }}>
+                      {INBOX_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {r.github_issue && (
+                      <a href={`https://github.com/pederhofmanbang/aktivitetskartan/issues/${r.github_issue}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#1A56DB" }}>
+                        Issue #{r.github_issue}
+                      </a>
+                    )}
+                    {sec.key === "andringar" && r.nr && (
+                      <span style={{ fontSize: 11, color: "#6B7280" }}>Nr {r.nr}</span>
+                    )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "4px 18px" }}>
+                    {sec.fields.filter(([k]) => r[k]).map(([k, label]) => (
+                      <div key={k} style={{ fontSize: 13 }}>
+                        <span style={{ fontWeight: 600, color: "#374151" }}>{label}: </span>
+                        <span style={{ whiteSpace: "pre-wrap" }}>{String(r[k])}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ─────────── MAIN DASHBOARD ─────────── */
 export default function Dashboard() {
   const [filters, setFilters] = useState({ del: [], sub: [], fk: [], maturity: [], jurisdictions: [], arbetaVidere: false, qaApproved: false, tags: {} });
@@ -3675,6 +3843,7 @@ export default function Dashboard() {
                 <button onClick={() => setViewMode("prionetwork")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "prionetwork" ? "1px solid #F59E0B" : "1px solid #E5E7EB", background: viewMode === "prionetwork" ? "#FFFBEB" : "#fff", color: viewMode === "prionetwork" ? "#B45309" : "#6B7280" }}>⭐ Prio-nätverk</button>
                 <button onClick={() => setViewMode("continuity")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "continuity" ? "1px solid #0E7490" : "1px solid #E5E7EB", background: viewMode === "continuity" ? "#ECFEFF" : "#fff", color: viewMode === "continuity" ? "#0E7490" : "#6B7280" }}>🛡️ Kontinuitet</button>
                 <button onClick={() => setViewMode("candidates")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "candidates" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "candidates" ? "#E8F0FE" : "#fff", color: viewMode === "candidates" ? "#1A56DB" : "#6B7280" }}>Kandidater</button>
+                <button onClick={() => setViewMode("inbox")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "inbox" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "inbox" ? "#E8F0FE" : "#fff", color: viewMode === "inbox" ? "#1A56DB" : "#6B7280" }}>📥 Inkorg</button>
                 <button onClick={() => setViewMode("guide")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: viewMode === "guide" ? "1px solid #4285F4" : "1px solid #E5E7EB", background: viewMode === "guide" ? "#E8F0FE" : "#fff", color: viewMode === "guide" ? "#1A56DB" : "#6B7280" }}>Lathund</button>
               </div>
               <div style={{ flex: 1 }} />
@@ -3689,7 +3858,7 @@ export default function Dashboard() {
                 </select>
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "prionetwork" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide" || viewMode === "prioritized" || viewMode === "continuity") ? 0 : 20 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: (viewMode === "matrix" || viewMode === "network" || viewMode === "prionetwork" || viewMode === "map" || viewMode === "candidates" || viewMode === "guide" || viewMode === "prioritized" || viewMode === "continuity" || viewMode === "inbox") ? 0 : 20 }}>
               {viewMode === "guide" ? (
                 <GuideView />
               ) : viewMode === "prioritized" ? (
@@ -3698,6 +3867,8 @@ export default function Dashboard() {
                 <PrioNetworkView data={sorted} overridesCache={overridesCache} onClickItem={item => setDetailItem(item)} />
               ) : viewMode === "continuity" ? (
                 <ContinuityView allData={DATA} />
+              ) : viewMode === "inbox" ? (
+                <InboxView />
               ) : viewMode === "candidates" ? (
                 <CandidatesView />
               ) : viewMode === "map" ? (
