@@ -2,6 +2,14 @@
 // serverar en rensad, cachead JSON till den publika sajten. Ingen
 // Supabase-nyckel når webbläsaren.
 
+// Stödjer både legacy service_role-JWT (eyJ…) och nya sb_secret_-nycklar.
+// De nya nycklarna är inte JWT:er och ska bara skickas i apikey-headern.
+function supaHeaders(key) {
+  const h = { apikey: key };
+  if (key.startsWith("eyJ")) h.Authorization = `Bearer ${key}`;
+  return h;
+}
+
 const PUBLIC_KEYS = [
   "fields",
   "arbetaVidere",
@@ -27,7 +35,7 @@ export default async function handler(req, res) {
 
   try {
     const r = await fetch(`${url}/rest/v1/overrides?select=nr,data`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: supaHeaders(key),
     });
     if (!r.ok) throw new Error("Supabase HTTP " + r.status);
     const rows = await r.json();

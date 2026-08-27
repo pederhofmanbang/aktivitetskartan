@@ -40,12 +40,16 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Stödjer både legacy service_role-JWT (eyJ…) och nya sb_secret_-nycklar.
+  // De nya nycklarna är inte JWT:er och ska bara skickas i apikey-headern.
+  const authHeaders = { apikey: supaKey };
+  if (supaKey.startsWith("eyJ")) authHeaders.Authorization = `Bearer ${supaKey}`;
+
   const supa = (path, init = {}) =>
     fetch(`${supaUrl}/rest/v1/${path}`, {
       ...init,
       headers: {
-        apikey: supaKey,
-        Authorization: `Bearer ${supaKey}`,
+        ...authHeaders,
         "Content-Type": "application/json",
         ...(init.headers || {}),
       },

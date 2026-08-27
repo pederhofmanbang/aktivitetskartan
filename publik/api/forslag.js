@@ -28,6 +28,14 @@ const TYPES = {
 
 const MAX_LEN = 5000;
 
+// Stödjer både legacy service_role-JWT (eyJ…) och nya sb_secret_-nycklar.
+// De nya nycklarna är inte JWT:er och ska bara skickas i apikey-headern.
+function supaHeaders(key, extra = {}) {
+  const h = { apikey: key, ...extra };
+  if (key.startsWith("eyJ")) h.Authorization = `Bearer ${key}`;
+  return h;
+}
+
 function trunc(s, n) {
   s = String(s || "");
   return s.length > n ? s.slice(0, n) + "…" : s;
@@ -99,12 +107,10 @@ export default async function handler(req, res) {
   try {
     const r = await fetch(`${supaUrl}/rest/v1/${conf.table}`, {
       method: "POST",
-      headers: {
-        apikey: supaKey,
-        Authorization: `Bearer ${supaKey}`,
+      headers: supaHeaders(supaKey, {
         "Content-Type": "application/json",
         Prefer: "return=representation",
-      },
+      }),
       body: JSON.stringify(row),
     });
     if (!r.ok) throw new Error("Supabase HTTP " + r.status + ": " + (await r.text()).slice(0, 200));
@@ -147,11 +153,7 @@ export default async function handler(req, res) {
         const created = await gr.json();
         await fetch(`${supaUrl}/rest/v1/${conf.table}?id=eq.${row.id}`, {
           method: "PATCH",
-          headers: {
-            apikey: supaKey,
-            Authorization: `Bearer ${supaKey}`,
-            "Content-Type": "application/json",
-          },
+          headers: supaHeaders(supaKey, { "Content-Type": "application/json" }),
           body: JSON.stringify({ github_issue: created.number }),
         });
       } else if (!gr.ok) {
