@@ -111,14 +111,15 @@ h1, h2, h3 { font-weight: 800; color: var(--varm-svart); }
 }
 .nav__brand {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
   text-decoration: none;
   color: var(--varm-svart);
+  padding: 10px 0;
 }
 .nav__mark {
-  width: 14px;
-  height: 34px;
+  width: 13px;
+  align-self: stretch;
   border-radius: 3px;
   background: linear-gradient(180deg, var(--skr-gul) 0%, var(--skr-gul) 33%, var(--skr-orange) 33%, var(--skr-orange) 66%, var(--skr-rod) 66%);
   flex: none;

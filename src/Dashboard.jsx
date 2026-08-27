@@ -78,7 +78,10 @@ function InitCard({ item, selected, onSelect, onClick, ov }) {
   const col = DEL_COLORS[item.del];
   const matVal = (ov && ov.maturity) ? ov.maturity : (STATUS_TO_MATURITY[item.st] || null);
   const matLevel = MATURITY_LEVELS.find(m => m.value === matVal);
-  const msek = parseMSEK(item.fin);
+  // Override-lagret vinner även i läsvyn — annars syns redigeringar bara i redigeringsläget.
+  const name = (ov?.fields?.n !== undefined && ov.fields.n !== "") ? ov.fields.n : item.n;
+  const nk = (ov?.fields?.nk !== undefined && ov.fields.nk !== "") ? ov.fields.nk : item.nk;
+  const msek = parseMSEK((ov?.fields?.fin !== undefined && ov.fields.fin !== "") ? ov.fields.fin : item.fin);
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: `1px solid ${selected ? col.border : ov?.arbetaVidere ? "#F59E0B" : "#E5E7EB"}`, padding: 0, cursor: "pointer", transition: "all 0.2s", boxShadow: selected ? `0 0 0 2px ${col.border}33` : ov?.arbetaVidere ? "0 0 0 2px #F59E0B33" : "0 1px 3px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", transform: selected ? "scale(1.01)" : "scale(1)" }}
       onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = col.border + "88"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}}
@@ -93,9 +96,9 @@ function InitCard({ item, selected, onSelect, onClick, ov }) {
           <div style={{ flex: 1 }} />
           {matLevel && <span style={{ fontSize: 9, fontWeight: 600, color: matLevel.color, background: matLevel.color + "14", padding: "2px 7px", borderRadius: 10, whiteSpace: "nowrap" }}>{matLevel.label}</span>}
         </div>
-        <h3 style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", margin: "0 0 6px 0", lineHeight: 1.35, fontFamily: "'DM Sans', sans-serif" }}>{item.n}</h3>
+        <h3 style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", margin: "0 0 6px 0", lineHeight: 1.35, fontFamily: "'DM Sans', sans-serif" }}>{name}</h3>
         <p style={{ fontSize: 12, color: "#6B7280", margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", fontFamily: "'Source Sans 3', sans-serif" }}>
-          {item.nk ? item.nk.substring(0, 180) + (item.nk.length > 180 ? "…" : "") : ""}
+          {nk ? nk.substring(0, 180) + (nk.length > 180 ? "…" : "") : ""}
         </p>
         {msek > 0 && <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}><Banknote size={12} color="#9CA3AF" /><span style={{ fontSize: 11, color: "#6B7280", fontWeight: 500 }}>{msek.toLocaleString("sv-SE")} MSEK</span></div>}
       </div>
@@ -166,7 +169,7 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
             <span style={{ fontSize: 12, fontWeight: 700, background: "rgba(255,255,255,0.25)", padding: "3px 10px", borderRadius: 6 }}>{item.sub}</span>
             <span style={{ fontSize: 12, opacity: 0.8 }}>Nr {item.nr}</span>
           </div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, lineHeight: 1.3, fontFamily: "'DM Sans', sans-serif", paddingRight: 32 }}>{item.n}</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, lineHeight: 1.3, fontFamily: "'DM Sans', sans-serif", paddingRight: 32 }}>{gfv("n")}</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             <button onClick={toggleArbetaVidere} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 600, cursor: "pointer", border: override.arbetaVidere ? "2px solid #F59E0B" : "1px solid #E5E7EB", background: override.arbetaVidere ? "#FFFBEB" : "rgba(255,255,255,0.15)", color: override.arbetaVidere ? "#B45309" : "rgba(255,255,255,0.8)" }}>
               {override.arbetaVidere ? <span style={{fontSize:12}}>⭐</span> : <span style={{fontSize:12,opacity:0.4}}>☆</span>}
@@ -233,15 +236,15 @@ function DetailModal({ item, onClose, allItems, overridesCache, refreshOverrides
             </div>
           </div>}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px", marginBottom: 20, padding: 16, background: "#F7F8FA", borderRadius: 12 }}>
-            {[["Mognadsgrad", matLevel ? matLevel.label : (item.st || "—")],["Finansiering", item.fin || "—"],["Finansieringskälla", item.fk],["Tidsperiod", item.tid || "—"],["Ansvarig", item.ans],["Hälsodatafokus", item.fok || "—"],["Målgrupp", item.mg || "—"],["Typ", item.typ]].map(([l, v], idx) => (
+            {[["Mognadsgrad", matLevel ? matLevel.label : (gfv("st") || "—")],["Finansiering", gfv("fin") || "—"],["Finansieringskälla", gfv("fk")],["Tidsperiod", gfv("tid") || "—"],["Ansvarig", gfv("ans")],["Hälsodatafokus", gfv("fok") || "—"],["Målgrupp", gfv("mg") || "—"],["Typ", gfv("typ")]].map(([l, v], idx) => (
               <div key={idx}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>{l}</div>
                 <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.4 }}>{v}</div>
               </div>
             ))}
           </div>
-          <div style={{ marginBottom: 20 }}><h4 style={{ fontSize: 13, fontWeight: 700, color: "#1B3A5C", marginBottom: 6 }}>Nyckelkaraktäristik</h4><p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{item.nk}</p></div>
-          {item.ehds && <div style={{ marginBottom: 20 }}><h4 style={{ fontSize: 13, fontWeight: 700, color: "#1B3A5C", marginBottom: 6 }}>EHDS-relevans</h4><p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{item.ehds}</p></div>}
+          <div style={{ marginBottom: 20 }}><h4 style={{ fontSize: 13, fontWeight: 700, color: "#1B3A5C", marginBottom: 6 }}>Nyckelkaraktäristik</h4><p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{gfv("nk")}</p></div>
+          {gfv("ehds") && <div style={{ marginBottom: 20 }}><h4 style={{ fontSize: 13, fontWeight: 700, color: "#1B3A5C", marginBottom: 6 }}>EHDS-relevans</h4><p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{gfv("ehds")}</p></div>}
           {item.wg_beskr && <div style={{ marginTop: 4, marginBottom: 12, padding: "10px 12px", background: "#F0F7FF", borderRadius: 8, border: "1px solid #BFDBFE" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#1A56DB", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Arbetsgruppens beskrivning</div>
             <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{item.wg_beskr}</div>
