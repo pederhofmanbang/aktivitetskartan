@@ -99,6 +99,9 @@ export default function StatsPanel({ overrides }) {
           <div className="stat-tile__label">AI-sammanställda</div>
         </div>
       </div>
+      <div className="stats__figure" aria-hidden="true">
+        <img src="/figurer/navet.png" alt="" loading="lazy" />
+      </div>
     </div>
   );
 }

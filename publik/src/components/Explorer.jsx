@@ -225,9 +225,6 @@ export default function Explorer({ overrides }) {
               />
             </div>
           </div>
-          <div className="hero__figure">
-            <img src="/figurer/navet.png" alt="" loading="lazy" />
-          </div>
         </div>
       </header>
 
