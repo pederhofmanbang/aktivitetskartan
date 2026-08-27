@@ -15,9 +15,9 @@ export default function About() {
         {DATA.length} initiativ och växer löpande.
       </p>
       <p>
-        Kartan tillhandahålls av Kompetenscentrum hälsodata (KCHD) — regionernas
-        gemensamma resurs för regiongemensam vårddatahantering inom Nationellt
-        system för kunskapsstyrning.
+        Kartan tillhandahålls av den regiongemensamma samarbetsplattformen
+        inom AI, som samordnas av Sveriges Kommuner och Regioner (SKR).
+        Innehållet utvecklas och kureras kontinuerligt.
       </p>
 
       <h2>Märkningen: Kurerad och AI-sammanställd</h2>
