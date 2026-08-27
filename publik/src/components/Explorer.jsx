@@ -206,6 +206,11 @@ export default function Explorer({ overrides }) {
               lagstiftning — kartlagda, kategoriserade och sökbara på ett
               ställe.
             </p>
+            <p style={{ fontSize: "0.88rem", color: "#55504a", maxWidth: 640, marginBottom: 22 }}>
+              Innehållet är under kontinuerlig utveckling och kurering.
+              Hälsodatakartan är framtagen som en del av den regiongemensamma
+              samarbetsplattformen inom AI, som samordnas av SKR.
+            </p>
             <div className="searchbox">
               <SearchIcon />
               <input

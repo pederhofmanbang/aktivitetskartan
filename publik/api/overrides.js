@@ -49,7 +49,8 @@ export default async function handler(req, res) {
       overrides[row.nr] = slim;
     }
 
-    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600");
+    // Kort cache så att redigeringar i interna appen syns publikt inom en minut.
+    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=60");
     res.status(200).json({ overrides });
   } catch (err) {
     console.error("overrides:", err.message);
