@@ -47,6 +47,7 @@ Repot deployas av TVÅ Vercel-projekt: `aktivitetskartan` (internt, root `.`) oc
 - **Snabb utrullning utan fungerande webhook:** publika projektet → senaste preview-deploy → Promote to Production; interna projektet → Create Deployment från `main`.
 - **"Skip deployments"-togglen ska vara AV i halsodatakartan** — databatcher rör ofta bara `src/data.js` (utanför `publik/`) och skulle annars inte deployas publikt.
 - Bygginställningarna för publika projektet ligger i `publik/vercel.json` (framework/build/output) — dashboardens preset spelar ingen roll.
+- **Ordinarie deployväg sedan 2026-08-27 kväll: `.github/workflows/deploy.yml`** — GitHub Action som deployar BÅDA projekten med Vercel CLI på varje main-push, oberoende av git-kopplingen. Kräver repo-secret `VERCEL_TOKEN` (går ut aug 2027 — förnya då). Vercels git-koppling ligger kvar parallellt; vaknar den blir det dubbla builds av samma commit (ofarligt).
 
 ## Data conventions for new initiatives
 
